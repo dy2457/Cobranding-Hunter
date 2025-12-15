@@ -1,28 +1,35 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SearchInput } from './components/SearchInput';
 import { LoadingState } from './components/LoadingState';
 import { ReviewBoard } from './components/ReviewBoard';
 import { Notebook } from './components/Notebook';
+import { NotebookList } from './components/NotebookList';
 import { searchBrandCases } from './services/geminiService';
-import { AppState, CobrandingCase, ResearchConfig, GroundingMetadata } from './types';
+import { AppState, CobrandingCase, ResearchConfig, GroundingMetadata, NotebookData } from './types';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
-  const [currentBrand, setCurrentBrand] = useState('');
   
   // Data for the current search session (Review Stage)
   const [reviewCases, setReviewCases] = useState<CobrandingCase[]>([]);
   const [currentMetadata, setCurrentMetadata] = useState<GroundingMetadata | undefined>(undefined);
   
-  // Permanent Notebook Data
-  const [notebookCases, setNotebookCases] = useState<CobrandingCase[]>([]);
+  // Notebooks Management
+  const [notebooks, setNotebooks] = useState<NotebookData[]>([
+    { id: 'default', name: 'My First Notebook', cases: [], createdAt: Date.now(), updatedAt: Date.now() }
+  ]);
+  const [activeNotebookId, setActiveNotebookId] = useState<string>('default');
   
   const [error, setError] = useState<string | null>(null);
 
+  // Set Document Title
+  useEffect(() => {
+    document.title = "Co-Brand Hunter | 联名情报局";
+  }, []);
+
   const handleStartResearch = useCallback(async (config: ResearchConfig) => {
     setAppState(AppState.SEARCHING);
-    setCurrentBrand(config.brandName);
     setError(null);
     setReviewCases([]);
     setCurrentMetadata(undefined);
@@ -47,59 +54,96 @@ const App: React.FC = () => {
   }, []);
 
   const handleConfirmReview = (selected: CobrandingCase[]) => {
-    // Add selected cases to notebook and auto-sort chronologically (Newest first)
-    setNotebookCases(prev => {
-      const combined = [...selected, ...prev];
-      return combined.sort((a, b) => {
-        // Normalize date format (YYYY.MM.DD -> YYYY-MM-DD) for parsing
-        const dateA = new Date(a.date.replace(/\./g, '-')); 
-        const dateB = new Date(b.date.replace(/\./g, '-'));
-        
-        // Handle invalid dates by pushing them to the end
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-
-        // Descending order (Newest first)
-        return dateB.getTime() - dateA.getTime();
-      });
-    });
+    // Add selected cases to active notebook and auto-sort
+    setNotebooks(prevNotebooks => prevNotebooks.map(nb => {
+      if (nb.id === activeNotebookId) {
+        const combined = [...selected, ...nb.cases];
+        const sorted = combined.sort((a, b) => {
+          const dateA = new Date(a.date.replace(/\./g, '-')); 
+          const dateB = new Date(b.date.replace(/\./g, '-'));
+          if (isNaN(dateA.getTime())) return 1;
+          if (isNaN(dateB.getTime())) return -1;
+          return dateB.getTime() - dateA.getTime();
+        });
+        return { ...nb, cases: sorted, updatedAt: Date.now() };
+      }
+      return nb;
+    }));
     
-    // Clear review cases because they are processed
+    // Clear review cases
     setReviewCases([]); 
-    setAppState(AppState.NOTEBOOK);
+    setAppState(AppState.NOTEBOOK_DETAIL);
   };
 
   const handleDiscardReview = () => {
     setReviewCases([]); // Clear rejected cases
-    setAppState(AppState.NOTEBOOK); // Go to notebook
+    setAppState(AppState.NOTEBOOK_DETAIL); // Go to notebook view
   };
 
   const deleteNotebookCase = (index: number) => {
-    setNotebookCases(prev => prev.filter((_, i) => i !== index));
+    setNotebooks(prev => prev.map(nb => {
+      if (nb.id === activeNotebookId) {
+        return { ...nb, cases: nb.cases.filter((_, i) => i !== index), updatedAt: Date.now() };
+      }
+      return nb;
+    }));
   };
 
-  // Logic to return from Notebook
-  const handleBackFromNotebook = () => {
-    // If we have pending review cases, go back to review
+  // --- Notebook Management Logic ---
+
+  const handleOpenNotebookList = () => {
+    if (appState !== AppState.SEARCHING) {
+       setAppState(AppState.NOTEBOOK_LIST);
+    }
+  };
+
+  const createNewNotebook = () => {
+    const newId = Date.now().toString();
+    const newNotebook: NotebookData = {
+      id: newId,
+      name: `Notebook ${notebooks.length + 1}`,
+      cases: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    setNotebooks([...notebooks, newNotebook]);
+    // Optionally auto-select it
+    // setActiveNotebookId(newId);
+  };
+
+  const deleteNotebook = (id: string) => {
+    if (notebooks.length <= 1) {
+      alert("You must keep at least one notebook.");
+      return;
+    }
+    const newNotebooks = notebooks.filter(n => n.id !== id);
+    setNotebooks(newNotebooks);
+    if (activeNotebookId === id) {
+      setActiveNotebookId(newNotebooks[0].id);
+    }
+  };
+
+  const selectNotebook = (id: string) => {
+    setActiveNotebookId(id);
+    setAppState(AppState.NOTEBOOK_DETAIL);
+  };
+
+  const handleBackFromNotebookDetail = () => {
     if (reviewCases.length > 0) {
       setAppState(AppState.REVIEWING);
     } else {
-      setAppState(AppState.IDLE);
+      setAppState(AppState.NOTEBOOK_LIST); // Back to list instead of IDLE
     }
   };
 
-  // Nav bar Notebook button click
-  const handleOpenNotebook = () => {
-    if (appState !== AppState.SEARCHING) {
-      setAppState(AppState.NOTEBOOK);
-    }
-  };
+  // Helper: Get active notebook object
+  const activeNotebook = notebooks.find(n => n.id === activeNotebookId) || notebooks[0];
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
       <Header 
-        notebookCount={notebookCases.length} 
-        onOpenNotebook={handleOpenNotebook}
+        notebookCount={activeNotebook.cases.length} 
+        onOpenNotebook={handleOpenNotebookList}
         isSearching={appState === AppState.SEARCHING}
       />
       
@@ -115,19 +159,28 @@ const App: React.FC = () => {
         {appState === AppState.REVIEWING && (
            <ReviewBoard 
              newCases={reviewCases} 
-             existingCases={notebookCases}
+             existingCases={activeNotebook.cases}
              metadata={currentMetadata}
              onConfirm={handleConfirmReview}
              onDiscardAll={handleDiscardReview}
            />
         )}
 
-        {appState === AppState.NOTEBOOK && (
+        {appState === AppState.NOTEBOOK_LIST && (
+           <NotebookList 
+             notebooks={notebooks}
+             onSelectNotebook={selectNotebook}
+             onCreateNotebook={createNewNotebook}
+             onDeleteNotebook={deleteNotebook}
+             onClose={() => setAppState(AppState.IDLE)}
+           />
+        )}
+
+        {appState === AppState.NOTEBOOK_DETAIL && (
            <Notebook 
-             cases={notebookCases} 
-             brandName={currentBrand}
-             onDelete={deleteNotebookCase}
-             onBack={handleBackFromNotebook}
+             notebook={activeNotebook}
+             onDeleteCase={deleteNotebookCase}
+             onBack={handleBackFromNotebookDetail}
              hasPendingReview={reviewCases.length > 0}
            />
         )}
@@ -147,7 +200,7 @@ const App: React.FC = () => {
       </main>
 
       <footer className="py-6 text-center text-gray-400 text-sm">
-        <p>© 2024 Co-Brand Hunter. Powered by Google Gemini 2.0 Flash.</p>
+        <p>© 2024 Co-Brand Hunter | 联名情报局. Powered by Google Gemini 2.0 Flash.</p>
       </footer>
     </div>
   );

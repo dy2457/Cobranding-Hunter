@@ -13,6 +13,7 @@ export interface CobrandingCase {
   insight: string;
   platformSource: string;
   sourceUrls: string[]; 
+  imageUrl?: string; // Kept as optional for compatibility, but deprecated
 }
 
 export interface GroundingChunk {
@@ -37,12 +38,21 @@ export interface ResearchConfig {
   platforms: string[];
 }
 
+export interface NotebookData {
+  id: string;
+  name: string;
+  cases: CobrandingCase[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export enum AppState {
   IDLE = 'IDLE',
   PLANNING = 'PLANNING', 
   SEARCHING = 'SEARCHING',
-  REVIEWING = 'REVIEWING', // New state for checking results before saving
-  NOTEBOOK = 'NOTEBOOK',   // State for viewing saved cases
+  REVIEWING = 'REVIEWING',
+  NOTEBOOK_LIST = 'NOTEBOOK_LIST', // New state for managing notebooks
+  NOTEBOOK_DETAIL = 'NOTEBOOK_DETAIL', // Viewing a specific notebook
   ERROR = 'ERROR'
 }
 
@@ -67,8 +77,8 @@ ${rightsFormatted}
 ${linksFormatted}`;
 };
 
-export const exportNotebookToMarkdown = (cases: CobrandingCase[], brandName: string) => {
-  const header = `# Co-Branding Research Report: ${brandName}\nGenerated on ${new Date().toLocaleDateString()}\n\n---\n\n`;
-  const content = cases.map((c, i) => `## Case ${i + 1}: ${c.projectName}\n\n${formatCaseToMarkdown(c)}`).join('\n\n---\n\n');
+export const exportNotebookToMarkdown = (notebook: NotebookData) => {
+  const header = `# Co-Branding Research Report: ${notebook.name}\nGenerated on ${new Date().toLocaleDateString()}\n\n---\n\n`;
+  const content = notebook.cases.map((c, i) => `## Case ${i + 1}: ${c.projectName}\n\n${formatCaseToMarkdown(c)}`).join('\n\n---\n\n');
   return header + content;
 };

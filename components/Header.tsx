@@ -18,7 +18,10 @@ export const Header: React.FC<HeaderProps> = ({ notebookCount = 0, onOpenNoteboo
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">
             C
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 tracking-tight hidden sm:block">Co-Brand Hunter</h1>
+          <div className="flex flex-col">
+             <h1 className="text-lg font-bold text-gray-900 leading-tight">Co-Brand Hunter</h1>
+             <span className="text-xs text-indigo-600 font-medium tracking-wider">联名情报局</span>
+          </div>
         </div>
         
         <div className="flex items-center gap-4">
@@ -36,12 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ notebookCount = 0, onOpenNoteboo
             }`}
           >
             <span className="text-lg">📓</span>
-            <span className="font-medium text-sm">My Notebook</span>
-            {notebookCount > 0 && (
-              <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">
-                {notebookCount}
-              </span>
-            )}
+            <span className="font-medium text-sm">My Notebooks</span>
           </button>
         </div>
       </div>

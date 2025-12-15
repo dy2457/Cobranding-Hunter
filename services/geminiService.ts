@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { CobrandingCase, ResearchConfig, ResearchResult, GroundingMetadata } from "../types";
 
@@ -29,17 +28,18 @@ export const searchBrandCases = async (config: ResearchConfig): Promise<Research
     ${strategySection}
     
     OBJECTIVE:
-    Conduct a DEEP and COMPREHENSIVE search for hardware co-branding/collaboration cases for this brand (Last 3-4 years).
+    Conduct a DEEP and COMPREHENSIVE search for cross-industry co-branding/collaboration cases for this brand (Last 3-4 years).
+    Scope includes: Consumer Electronics, Fashion/Apparel, Food & Beverage, Home/Lifestyle, Automotive, Art/Toys, and Collectibles.
     
     SEARCH EXECUTION:
     1. Use the provided keywords to search.
-    2. PRIORITIZE searching within the specific requested domains/platforms if mentioned (e.g., zhihu.com, reddit.com).
+    2. PRIORITIZE searching within the specific requested domains/platforms if mentioned.
     3. Look for "hidden gems" in social media discussions if requested.
     4. Verify details using multiple sources if possible.
     
     DATA EXTRACTION RULES:
-    - **Partner Intro**: Who is the partner?
-    - **Rights**: Detailed descriptions of customization.
+    - **Partner Intro**: Who is the partner? (Brand, Artist, IP, or Franchise)
+    - **Rights**: Detailed descriptions of customization (Packaging, Product Design, Digital Content, Accessories).
     - **Source URLs**: Collect ALL relevant URLs (Official, News, Social) that verify this case.
     - **Language**: Output text in Chinese (Simplified).
     
@@ -47,7 +47,7 @@ export const searchBrandCases = async (config: ResearchConfig): Promise<Research
     {
       "projectName": "string (Project Overview)",
       "date": "string (YYYY.MM.DD - Strict Format)",
-      "productName": "string (Hardware Model)",
+      "productName": "string (Product Name or Collection)",
       "partnerIntro": "string (Partner Description)",
       "rights": [
         { 
@@ -57,7 +57,7 @@ export const searchBrandCases = async (config: ResearchConfig): Promise<Research
       ],
       "insight": "string (Marketing Analysis)",
       "platformSource": "string (e.g. 'Reddit + Official' or 'Zhihu')",
-      "sourceUrls": ["string (url1)", "string (url2)"] 
+      "sourceUrls": ["string (url1)", "string (url2)"]
     }
   `;
 
@@ -68,23 +68,53 @@ export const searchBrandCases = async (config: ResearchConfig): Promise<Research
       config: {
         tools: [{ googleSearch: {} }], 
         temperature: 0.1, 
-        systemInstruction: "You are a rigorous Data Extraction Agent. Your output must be ONLY a valid JSON array containing the research results. Do not include markdown formatting. Do not include conversational text. If no results are found, output []. Ensure all JSON strings are properly escaped.",
+        systemInstruction: "You are a rigorous Data Extraction Agent. Your output must be ONLY a valid JSON array containing the research results. \n\nIMPORTANT FORMATTING RULES:\n1. Return ONLY the raw JSON array `[...]`.\n2. Do NOT use Markdown code blocks (e.g., no ```json wrapper).\n3. Do NOT include any conversational text before or after the JSON.\n4. Ensure there are NO trailing commas after the last element in arrays or objects.\n5. Escape all double quotes inside strings properly.",
       },
     });
 
     let jsonText = response.text || "[]";
     
-    const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      jsonText = jsonMatch[0];
-    } else {
-      console.warn("No JSON structure found in response:", jsonText);
-      return { cases: [] };
+    // Cleanup: Remove markdown code blocks if they exist (despite instructions)
+    const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      jsonText = codeBlockMatch[1];
     }
     
-    jsonText = jsonText.replace(/[\n\r]/g, " ");
+    // Cleanup: Find the array brackets
+    const jsonArrayMatch = jsonText.match(/\[[\s\S]*\]/);
+    if (jsonArrayMatch) {
+      jsonText = jsonArrayMatch[0];
+    } else {
+      console.warn("No JSON array structure found in response:", jsonText);
+      // Fallback: if it looks like a single object, wrap it
+      if (jsonText.trim().startsWith('{')) {
+        jsonText = `[${jsonText}]`;
+      } else {
+         return { cases: [] };
+      }
+    }
+    
+    // Cleanup: Handle unescaped control characters which might break JSON.parse
+    // We replace literal newlines with space to prevent parsing errors, 
+    // assuming the model didn't properly escape them as \n.
+    jsonText = jsonText.replace(/[\n\r\t]/g, " ");
 
-    let cases = JSON.parse(jsonText) as CobrandingCase[];
+    let cases: CobrandingCase[] = [];
+    
+    try {
+      cases = JSON.parse(jsonText) as CobrandingCase[];
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      console.log("Raw JSON Text:", jsonText);
+      
+      // Attempt to fix common error: Trailing commas
+      try {
+        const fixedJson = jsonText.replace(/,\s*([\]}])/g, '$1');
+        cases = JSON.parse(fixedJson) as CobrandingCase[];
+      } catch (retryError) {
+        throw new Error("Failed to parse API response. The model output was malformed.");
+      }
+    }
 
     // Sort by Date Descending
     cases = cases.sort((a, b) => {
@@ -98,7 +128,6 @@ export const searchBrandCases = async (config: ResearchConfig): Promise<Research
     });
 
     // Extract Grounding Metadata (Sources)
-    // Cast to unknown first because SDK types might contain extra properties or minor mismatches (like optional vs required) that we've now aligned in types.ts but explicit casting ensures safety.
     const groundingMetadata = response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata | undefined;
 
     return { cases, metadata: groundingMetadata };

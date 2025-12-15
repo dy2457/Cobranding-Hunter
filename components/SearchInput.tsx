@@ -25,16 +25,17 @@ const BRAND_CATEGORIES = [
   {
     id: 'lifestyle',
     label: 'Lifestyle & Audio',
-    brands: ['Dyson', 'JBL', 'Marshall', 'Casetify', 'Nothing']
+    brands: ['Dyson', 'JBL', 'Marshall', 'Casetify', 'Nothing', 'Hello Kitty', 'Pop Mart']
   }
 ];
 
 const DEFAULT_PLATFORMS = [
-  "Official Website/Press",
-  "Tech News (The Verge, Engadget)",
-  "Social Media (Instagram/Twitter)",
-  "Community (Reddit)",
-  "Chinese Social (Xiaohongshu/Weibo)"
+  "Google Search (google.com)",
+  "Official Website/Press Rooms",
+  "Tech News (theverge.com, engadget.com)",
+  "Social Media (instagram.com, twitter.com)",
+  "Community (reddit.com)",
+  "Chinese Social (xiaohongshu.com, weibo.com)"
 ];
 
 export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appState }) => {
@@ -46,7 +47,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
   const [newKeyword, setNewKeyword] = useState('');
   const [newPlatform, setNewPlatform] = useState('');
 
-  const [activeCategory, setActiveCategory] = useState('cameras');
+  const [activeCategory, setActiveCategory] = useState('lifestyle');
 
   useEffect(() => {
     if (brandName) {
@@ -104,9 +105,6 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
     }
   };
 
-  // If in notebook or review mode, only show mini search bar if desired, 
-  // but typically we just hide this big component or show a collapsed version.
-  // For now, we allow it to render but disable if searching.
   const isLoading = appState === AppState.SEARCHING;
 
   if (isPlanning) {
@@ -167,7 +165,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
                       onChange={() => togglePlatform(p)}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-900">{p}</span>
+                    <span className="ml-3 text-sm font-medium text-gray-900 break-words">{p}</span>
                   </label>
                 ))}
                 
@@ -190,7 +188,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
                   type="text" 
                   value={newPlatform}
                   onChange={(e) => setNewPlatform(e.target.value)}
-                  placeholder="Add specific site (e.g. 'zhihu.com', 'hypebeast.com')"
+                  placeholder="Add specific site (e.g. 'hypebeast.com')"
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
                 />
                 <button type="submit" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">Add Site</button>
@@ -231,8 +229,11 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
     <div className="w-full max-w-4xl mx-auto mt-8 mb-8 animate-fade-in-up">
       {/* Search Bar */}
       <div className="text-center max-w-2xl mx-auto mb-10">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Co-Brand Hunter</h2>
-        <p className="text-gray-500 mb-6">Enter a brand to configure your research strategy.</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Co-Brand Hunter | 联名情报局</h2>
+        <p className="text-gray-500 mb-6 flex flex-col items-center justify-center gap-1">
+          <span className="block">Enter a brand to configure your research strategy.</span>
+          <span className="block text-gray-400">输入您感兴趣的品牌名并自定义检索设置</span>
+        </p>
         
         <form onSubmit={handleInitialSubmit} className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -246,7 +247,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, appSt
             onChange={(e) => setBrandName(e.target.value)}
             disabled={isLoading}
             className="block w-full pl-11 pr-4 py-4 border border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-sm text-lg"
-            placeholder="Enter brand name (e.g., Insta360)..."
+            placeholder="Enter brand name (e.g., Hello Kitty)..."
           />
           <button
             type="submit"
