@@ -1,139 +1,299 @@
 import { GoogleGenAI } from "@google/genai";
-import { CobrandingCase, ResearchConfig, ResearchResult, GroundingMetadata } from "../types";
+import { CobrandingCase, ResearchConfig, ResearchResult, GroundingMetadata, TrendResult, TrendItem, ResearchPlan, ScanResult, ScanCandidate, TrendConfig, IPProfile, MatchConfig, MatchRecommendation } from "../types";
 
 const apiKey = process.env.API_KEY || '';
 
 // Initialize GenAI
 const ai = new GoogleGenAI({ apiKey });
 
-export const searchBrandCases = async (config: ResearchConfig): Promise<ResearchResult> => {
-  if (!apiKey) {
-    throw new Error("API Key is missing.");
-  }
+const modelName = "gemini-2.5-flash";
 
-  const model = "gemini-2.5-flash";
-  
-  // Construct the strategy part of the prompt based on user input
+// --- EXISTING BRAND SEARCH (Legacy/Brand Mode) ---
+export const searchBrandCases = async (config: ResearchConfig): Promise<ResearchResult> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
   const strategySection = `
     TARGET BRAND: "${config.brandName}"
-    
-    CUSTOM SEARCH KEYWORDS (Must use these):
-    ${config.keywords.map(k => `- "${k}"`).join('\n')}
-
-    TARGET SOURCES/PLATFORMS:
-    ${config.platforms.join(', ')}
+    CUSTOM SEARCH KEYWORDS: ${config.keywords.map(k => `"${k}"`).join(', ')}
+    TARGET SOURCES: ${config.platforms.join(', ')}
   `;
 
   const prompt = `
     ${strategySection}
-    
-    OBJECTIVE:
-    Conduct a DEEP and COMPREHENSIVE search for cross-industry co-branding/collaboration cases for this brand (Last 3-4 years).
-    Scope includes: Consumer Electronics, Fashion/Apparel, Food & Beverage, Home/Lifestyle, Automotive, Art/Toys, and Collectibles.
-    
-    SEARCH EXECUTION:
-    1. Use the provided keywords to search.
-    2. PRIORITIZE searching within the specific requested domains/platforms if mentioned.
-    3. Look for "hidden gems" in social media discussions if requested.
-    4. Verify details using multiple sources if possible.
-    
-    DATA EXTRACTION RULES:
-    - **Partner Intro**: Who is the partner? (Brand, Artist, IP, or Franchise)
-    - **Rights**: Detailed descriptions of customization (Packaging, Product Design, Digital Content, Accessories).
-    - **Source URLs**: Collect ALL relevant URLs (Official, News, Social) that verify this case.
-    - **Language**: Output text in Chinese (Simplified).
+    OBJECTIVE: Deep search for co-branding cases (Last 3-4 years).
+    DATA EXTRACTION RULES: Output strictly structured JSON.
+    Language: Chinese (Simplified).
     
     JSON Structure per item:
     {
-      "projectName": "string (Project Overview)",
-      "date": "string (YYYY.MM.DD - Strict Format)",
-      "productName": "string (Product Name or Collection)",
-      "partnerIntro": "string (Partner Description)",
-      "rights": [
-        { 
-          "title": "string", 
-          "description": "string" 
-        }
-      ],
-      "insight": "string (Marketing Analysis)",
-      "platformSource": "string (e.g. 'Reddit + Official' or 'Zhihu')",
-      "sourceUrls": ["string (url1)", "string (url2)"]
+      "projectName": "string",
+      "date": "string (YYYY.MM.DD)",
+      "productName": "string",
+      "partnerIntro": "string",
+      "rights": [{ "title": "string", "description": "string" }],
+      "insight": "string",
+      "platformSource": "string",
+      "sourceUrls": ["string"]
     }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: model,
+      model: modelName,
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }], 
         temperature: 0.1, 
-        systemInstruction: "You are a rigorous Data Extraction Agent. Your output must be ONLY a valid JSON array containing the research results. \n\nIMPORTANT FORMATTING RULES:\n1. Return ONLY the raw JSON array `[...]`.\n2. Do NOT use Markdown code blocks (e.g., no ```json wrapper).\n3. Do NOT include any conversational text before or after the JSON.\n4. Ensure there are NO trailing commas after the last element in arrays or objects.\n5. Escape all double quotes inside strings properly.",
+        systemInstruction: "You are a rigorous Data Extraction Agent. Return ONLY valid JSON array.",
       },
     });
 
-    let jsonText = response.text || "[]";
-    
-    // Cleanup: Remove markdown code blocks if they exist (despite instructions)
-    const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (codeBlockMatch) {
-      jsonText = codeBlockMatch[1];
-    }
-    
-    // Cleanup: Find the array brackets
-    const jsonArrayMatch = jsonText.match(/\[[\s\S]*\]/);
-    if (jsonArrayMatch) {
-      jsonText = jsonArrayMatch[0];
-    } else {
-      console.warn("No JSON array structure found in response:", jsonText);
-      // Fallback: if it looks like a single object, wrap it
-      if (jsonText.trim().startsWith('{')) {
-        jsonText = `[${jsonText}]`;
-      } else {
-         return { cases: [] };
-      }
-    }
-    
-    // Cleanup: Handle unescaped control characters which might break JSON.parse
-    // We replace literal newlines with space to prevent parsing errors, 
-    // assuming the model didn't properly escape them as \n.
-    jsonText = jsonText.replace(/[\n\r\t]/g, " ");
-
-    let cases: CobrandingCase[] = [];
-    
-    try {
-      cases = JSON.parse(jsonText) as CobrandingCase[];
-    } catch (parseError) {
-      console.error("JSON Parse Error:", parseError);
-      console.log("Raw JSON Text:", jsonText);
-      
-      // Attempt to fix common error: Trailing commas
-      try {
-        const fixedJson = jsonText.replace(/,\s*([\]}])/g, '$1');
-        cases = JSON.parse(fixedJson) as CobrandingCase[];
-      } catch (retryError) {
-        throw new Error("Failed to parse API response. The model output was malformed.");
-      }
-    }
-
-    // Sort by Date Descending
-    cases = cases.sort((a, b) => {
+    const cases = parseJsonResponse<CobrandingCase[]>(response.text);
+    const sortedCases = cases.sort((a, b) => {
       const dateA = new Date(a.date.replace(/\./g, '-')); 
       const dateB = new Date(b.date.replace(/\./g, '-'));
-      
-      if (isNaN(dateA.getTime())) return 1;
-      if (isNaN(dateB.getTime())) return -1;
-
-      return dateB.getTime() - dateA.getTime();
+      return (isNaN(dateB.getTime()) ? 0 : dateB.getTime()) - (isNaN(dateA.getTime()) ? 0 : dateA.getTime());
     });
 
-    // Extract Grounding Metadata (Sources)
-    const groundingMetadata = response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata | undefined;
-
-    return { cases, metadata: groundingMetadata };
-
+    return { cases: sortedCases, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw error;
   }
 };
+
+// --- SINGLE-SHOT TREND SEARCH (Used by App.tsx) ---
+export const analyzeTrends = async (config: TrendConfig): Promise<TrendResult> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    TOPIC: "${config.topic}"
+    TIME SCALE: "${config.timeScale}"
+    REQUIRED COUNT: Identify top ${config.limit} items.
+    CUSTOM CONTEXT/KEYWORDS: ${config.keywords.join(', ')}
+    TARGET SOURCES/DOMAINS: ${config.platforms.join(', ')}
+
+    TASK: Analyze current market trends to identify top co-branding opportunities, IPs, or brands related to this topic within the specified time scale and sources.
+    
+    DATA EXTRACTION RULES:
+    - Identify specific entities (IPs, Brands, or Cultural Phenomena).
+    - Provide clear reasoning for why they are trending.
+    - Output text in Chinese (Simplified).
+    - Output strictly structured JSON.
+
+    JSON Structure per item:
+    {
+      "ipName": "string",
+      "category": "string",
+      "reason": "string",
+      "targetAudience": "string",
+      "compatibility": "string"
+    }
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.4,
+      systemInstruction: "You are a Trend Analyst. Return ONLY a valid JSON array of objects."
+    }
+  });
+
+  const trends = parseJsonResponse<TrendItem[]>(response.text);
+  return { trends, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+};
+
+// --- IP SCOUT (DEEP DIVE) ---
+export const generateIPProfile = async (ipName: string): Promise<{ profile: IPProfile, metadata?: GroundingMetadata }> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    TARGET IP: "${ipName}"
+    TASK: Generate a comprehensive commercial profile for this IP (Intellectual Property) focusing on its co-branding potential.
+    LANGUAGE: English for Keys, Chinese (Simplified) for Content.
+
+    OUTPUT JSON STRUCTURE:
+    {
+      "name": "${ipName}",
+      "description": "Brief summary of the IP origin and status",
+      "tags": ["Tag1", "Tag2"],
+      "coreValues": ["Value1", "Value2"],
+      "audienceDemographics": {
+        "ageRange": "e.g. 18-35",
+        "genderSplit": "e.g. 60% Female",
+        "keyInterests": ["Interest1", "Interest2"]
+      },
+      "commercialTier": "S", // Enum: S, A, B, C (S is Global Blockbuster)
+      "riskAssessment": "Potential risks (e.g. niche audience, expensive rights)",
+      "pastCollabs": ["Brand1", "Brand2"]
+    }
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.2,
+      systemInstruction: "You are a Commercial IP Analyst. Return ONLY valid JSON matching the structure."
+    }
+  });
+
+  const profile = parseJsonResponse<IPProfile>(response.text);
+  return { profile, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+};
+
+// --- MATCHMAKER ---
+export const matchmakeIPs = async (config: MatchConfig): Promise<{ recommendations: MatchRecommendation[], metadata?: GroundingMetadata }> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    MY BRAND CONTEXT:
+    - Name: "${config.brandName}"
+    - Industry: "${config.industry}"
+    - Campaign Goal/Theme: "${config.campaignGoal}"
+    - Target Audience: "${config.targetAudience || 'General'}"
+
+    TASK:
+    Act as a Creative Director. Recommend 5 specific IPs (Intellectual Properties - Anime, Games, Art, Characters, Lifestyle Brands) that are the BEST match for a co-branding collaboration with my brand.
+    Focus on "Chemistry" and "Commercial Impact".
+    LANGUAGE: Chinese (Simplified).
+
+    OUTPUT JSON STRUCTURE:
+    [
+      {
+        "ipName": "Name of IP",
+        "category": "e.g. Anime, Game",
+        "matchScore": 95, // 0-100 Integer
+        "whyItWorks": "Strategic rationale...",
+        "campaignIdea": "One sentence creative concept..."
+      }
+    ]
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.7,
+      systemInstruction: "You are a Creative Strategy Director. Return ONLY valid JSON array."
+    }
+  });
+
+  const recommendations = parseJsonResponse<MatchRecommendation[]>(response.text);
+  return { recommendations, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+};
+
+// --- HELPER FUNCTIONS ---
+
+export const generateSmartIPList = async (query: string): Promise<string[]> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    USER QUERY: "${query}"
+    TASK: Generate a list of 20-30 specific IP Names, Popular Characters, or Cultural Entities that match the user's request for potential co-branding targets.
+    
+    Example input: "Most famous JP anime"
+    Example output: ["One Piece", "Naruto", "Dragon Ball", ...]
+
+    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      temperature: 0.7,
+      responseMimeType: "application/json"
+    }
+  });
+
+  return parseJsonResponse<string[]>(response.text);
+};
+
+export const generateSmartBrandList = async (query: string): Promise<string[]> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    USER QUERY: "${query}"
+    TASK: Generate a list of 20-30 specific Brand Names that match the user's request. Focus on commercial brands.
+    
+    Example input: "Top Chinese EV makers"
+    Example output: ["BYD", "NIO", "XPeng", "Xiaomi Auto", ...]
+
+    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      temperature: 0.7,
+      responseMimeType: "application/json"
+    }
+  });
+
+  return parseJsonResponse<string[]>(response.text);
+};
+
+export const generateSmartTrendTopics = async (query: string): Promise<string[]> => {
+  if (!apiKey) throw new Error("API Key is missing.");
+
+  const prompt = `
+    USER QUERY: "${query}"
+    TASK: Generate a list of 10-15 specific, high-value "IP (Intellectual Property) & Co-branding" Research Topics based on the user's broad interest.
+    Focus on identifying trending Characters, Anime, Games, Movies, Art, or Cultural Icons that would be suitable for co-branding in this sector.
+    
+    Example input: "Food"
+    Example output: ["Trending Anime IPs for Snack Packaging 2025", "Nostalgic Gaming Characters for Energy Drinks", "Viral Mascot IPs for Fast Food Collabs", "Top Art IPs for Coffee Brands"]
+
+    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: modelName,
+    contents: prompt,
+    config: {
+      temperature: 0.7,
+      responseMimeType: "application/json"
+    }
+  });
+
+  return parseJsonResponse<string[]>(response.text);
+};
+
+// Helper to reliably parse JSON from LLM output
+function parseJsonResponse<T>(text?: string): T {
+  if (!text) return [] as T;
+
+  let cleanText = text;
+  
+  // Remove markdown
+  const codeBlockMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch) cleanText = codeBlockMatch[1];
+
+  // Try to find array or object
+  const jsonMatch = cleanText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+  if (jsonMatch) {
+    cleanText = jsonMatch[0];
+  } 
+
+  cleanText = cleanText.replace(/[\n\r\t]/g, " ");
+
+  try {
+    return JSON.parse(cleanText) as T;
+  } catch (e) {
+    console.error("JSON Parse failed", e);
+    // Basic fix attempt for trailing commas
+    try {
+      const fixedJson = cleanText.replace(/,\s*([\]}])/g, '$1');
+      return JSON.parse(fixedJson) as T;
+    } catch (e2) {
+      console.error("JSON Fix failed", e2);
+      return [] as T;
+    }
+  }
+}

@@ -1,88 +1,102 @@
 import React from 'react';
-import { NotebookData } from '../types';
+import { CollectionType, NotebookData } from '../types';
 
 interface NotebookListProps {
   notebooks: NotebookData[];
   onSelectNotebook: (id: string) => void;
-  onCreateNotebook: () => void;
+  onCreateNotebook: (type: CollectionType) => void;
   onDeleteNotebook: (id: string) => void;
   onClose: () => void;
 }
 
-export const NotebookList: React.FC<NotebookListProps> = ({ 
-  notebooks, 
-  onSelectNotebook, 
-  onCreateNotebook, 
-  onDeleteNotebook,
-  onClose
-}) => {
-  return (
-    <div className="max-w-4xl mx-auto py-10">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">My Notebooks</h2>
-          <p className="text-gray-500 mt-1">Manage your research collections.</p>
-        </div>
-        <div className="flex gap-3">
-           <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-             Close
-           </button>
-           <button 
-             onClick={onCreateNotebook}
-             className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 flex items-center gap-2"
-           >
-             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-             New Notebook
-           </button>
-        </div>
+export const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onSelectNotebook, onCreateNotebook, onDeleteNotebook, onClose }) => {
+  const caseNotebooks = notebooks.filter(n => n.type === 'notebook');
+  const trendReports = notebooks.filter(n => n.type === 'report');
+
+  const Section = ({ title, type, items, icon, gradient }: { title: string, type: CollectionType, items: NotebookData[], icon: string, gradient: string }) => (
+    <div className="mb-12">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+           <span className="bg-white w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-sm border border-slate-100">{icon}</span> {title}
+        </h3>
+        <button onClick={() => onCreateNotebook(type)} className="text-sm bg-slate-900 text-white hover:bg-black font-bold py-2.5 px-5 rounded-full transition-all hover:scale-105 shadow-lg active:scale-95">
+             + New
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {notebooks.length === 0 && (
-           <div className="col-span-full text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-              <p className="text-gray-400">No notebooks yet. Create one to start collecting.</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+        {items.length === 0 && (
+           <div className="col-span-full py-12 rounded-[32px] border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center text-slate-400">
+              <p className="font-bold text-sm">Collection Empty</p>
            </div>
         )}
         
-        {notebooks.map(notebook => (
-          <div key={notebook.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative group">
-             <div className="flex justify-between items-start mb-4">
-                <div 
-                   className="cursor-pointer"
-                   onClick={() => onSelectNotebook(notebook.id)}
-                >
-                   <h3 className="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                     {notebook.name}
-                   </h3>
-                   <p className="text-xs text-gray-400 mt-1">
-                     Created: {new Date(notebook.createdAt).toLocaleDateString()}
-                   </p>
-                </div>
-                <button 
-                   onClick={(e) => { e.stopPropagation(); onDeleteNotebook(notebook.id); }}
-                   className="p-2 text-gray-300 hover:text-red-500 rounded-full hover:bg-red-50"
-                   title="Delete Notebook"
-                >
-                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-             </div>
+        {items.map(notebook => (
+          <div 
+            key={notebook.id} 
+            onClick={() => onSelectNotebook(notebook.id)}
+            className="group relative aspect-[4/5] bg-white rounded-[32px] p-6 flex flex-col justify-between shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 cursor-pointer border border-slate-100 overflow-hidden"
+          >
+             {/* Dynamic background blob */}
+             <div className={`absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br ${gradient} rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity`}></div>
              
-             <div className="flex items-end justify-between mt-6">
+             <div className="relative z-10">
+                 <div className="flex justify-between items-start">
+                    <span className="text-4xl filter drop-shadow-sm">{type === 'report' ? '📉' : '📓'}</span>
+                    <button 
+                       onClick={(e) => { e.stopPropagation(); onDeleteNotebook(notebook.id); }}
+                       className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm text-slate-300 hover:text-red-500 hover:bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm transform scale-90 group-hover:scale-100"
+                    >
+                       ✕
+                    </button>
+                 </div>
+             </div>
+
+             <div className="relative z-10">
+                <h3 className="text-xl font-bold text-slate-900 leading-tight mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">
+                  {notebook.name}
+                </h3>
                 <div className="flex items-center gap-2">
-                   <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-                     {notebook.cases.length} Cases
+                   <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded-lg text-slate-500 uppercase tracking-wide">
+                     {type === 'report' ? `${notebook.trends?.length || 0} Trends` : `${notebook.cases.length} Cases`}
+                   </span>
+                   <span className="text-[10px] font-bold text-slate-300">
+                     {new Date(notebook.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                    </span>
                 </div>
-                <button 
-                   onClick={() => onSelectNotebook(notebook.id)}
-                   className="text-sm font-medium text-indigo-600 hover:underline"
-                >
-                  Open &rarr;
-                </button>
              </div>
           </div>
         ))}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-5xl mx-auto pt-32 pb-20 px-6 animate-fade-in-up">
+      <div className="flex items-center justify-between mb-12">
+        <div>
+          <h2 className="text-5xl font-bold text-slate-900 tracking-tight">Library</h2>
+        </div>
+        <button onClick={onClose} className="w-12 h-12 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all hover:rotate-90">
+             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <Section 
+        title="Case Notebooks" 
+        type="notebook" 
+        items={caseNotebooks} 
+        icon="⚡️" 
+        gradient="from-indigo-400 to-cyan-300"
+      />
+
+      <Section 
+        title="Trend Reports" 
+        type="report" 
+        items={trendReports} 
+        icon="🔮" 
+        gradient="from-fuchsia-400 to-rose-300"
+      />
     </div>
   );
 };

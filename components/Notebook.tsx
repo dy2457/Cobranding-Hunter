@@ -1,15 +1,25 @@
-import React from 'react';
-import { CobrandingCase, exportNotebookToMarkdown, formatCaseToMarkdown, NotebookData } from '../types';
+import React, { useState, useEffect } from 'react';
+import { CobrandingCase, formatCaseToMarkdown, NotebookData, TrendItem } from '../types';
+import { InfographicDashboard } from './InfographicDashboard';
 
 interface NotebookProps {
   notebook: NotebookData;
+  onRename: (id: string, newName: string) => void;
   onDeleteCase: (index: number) => void;
+  onDeleteTrend?: (index: number) => void;
   onBack: () => void;
   hasPendingReview?: boolean;
 }
 
-export const Notebook: React.FC<NotebookProps> = ({ notebook, onDeleteCase, onBack, hasPendingReview }) => {
-  const [copiedIndex, setCopiedIndex] = React.useState<number | null>(null);
+export const Notebook: React.FC<NotebookProps> = ({ notebook, onRename, onDeleteCase, onDeleteTrend, onBack, hasPendingReview }) => {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(notebook.name);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
+  useEffect(() => {
+    setEditedName(notebook.name);
+  }, [notebook.name]);
 
   const handleCopy = (c: CobrandingCase, idx: number) => {
     const text = formatCaseToMarkdown(c);
@@ -18,21 +28,17 @@ export const Notebook: React.FC<NotebookProps> = ({ notebook, onDeleteCase, onBa
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const handleExport = () => {
-    const text = exportNotebookToMarkdown(notebook);
-    const blob = new Blob([text], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${notebook.name.replace(/\s+/g, '_')}_Report.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const saveName = () => {
+    if (editedName.trim()) {
+      onRename(notebook.id, editedName);
+    } else {
+      setEditedName(notebook.name);
+    }
+    setIsEditingName(false);
   };
 
   const BackButton = () => (
-    <button onClick={onBack} className={`px-4 py-2 rounded-lg text-sm font-medium border flex items-center gap-2 transition-colors ${hasPendingReview ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+    <button onClick={onBack} className={`px-4 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2 transition-colors ${hasPendingReview ? 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200'}`}>
        {hasPendingReview ? (
          <>
            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -41,136 +47,189 @@ export const Notebook: React.FC<NotebookProps> = ({ notebook, onDeleteCase, onBa
        ) : (
          <>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-          Back to List
+          Back
          </>
        )}
     </button>
   );
 
-  if (notebook.cases.length === 0) {
+  const isEmpty = notebook.cases.length === 0 && (!notebook.trends || notebook.trends.length === 0);
+  const isReport = notebook.type === 'report';
+
+  if (isEmpty) {
     return (
-      <div className="max-w-4xl mx-auto mt-10 text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
-         <div className="text-6xl mb-4">📓</div>
-         <h2 className="text-xl font-bold text-gray-900">This Notebook is Empty</h2>
-         <p className="text-gray-500 mb-8">Start a new research to collect cases for "{notebook.name}".</p>
-         <button onClick={onBack} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">
-            {hasPendingReview ? 'Return to Review' : 'Back to Notebooks'}
-         </button>
+      <div className="max-w-4xl mx-auto mt-32 text-center py-24 bg-white/50 backdrop-blur-md rounded-[40px] border border-dashed border-slate-300 animate-fade-in">
+         <div className="text-6xl mb-6 opacity-30">📓</div>
+         <h2 className="text-2xl font-bold text-slate-800 mb-2">Notebook is Empty</h2>
+         <p className="text-slate-500 mb-8">Go find some awesome co-branding cases!</p>
+         <div className="flex justify-center">
+            <BackButton />
+         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20">
-      <div className="flex items-center justify-between mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-20 z-40">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{notebook.name}</h2>
-          <p className="text-sm text-gray-500">{notebook.cases.length} cases collected</p>
-        </div>
-        <div className="flex gap-3">
+    <div className="max-w-5xl mx-auto pb-20 mt-28 px-4 animate-fade-in-up">
+      {/* Analytics Overlay */}
+      {showAnalytics && <InfographicDashboard notebook={notebook} onClose={() => setShowAnalytics(false)} />}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8 sticky top-24 z-30 bg-white/80 backdrop-blur-xl py-4 rounded-[20px] px-6 border border-white/50 shadow-sm transition-all">
+        <div className="flex items-center gap-6">
            <BackButton />
-           <button onClick={handleExport} className="px-6 py-2 bg-black text-white rounded-lg text-sm font-bold shadow hover:bg-gray-800 flex items-center gap-2">
-             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-             Export Markdown
+           <div>
+              {isEditingName ? (
+                <input 
+                  autoFocus
+                  className="text-2xl font-bold text-slate-900 bg-transparent border-b-2 border-indigo-500 focus:outline-none w-full"
+                  value={editedName}
+                  onChange={e => setEditedName(e.target.value)}
+                  onBlur={saveName}
+                  onKeyDown={e => e.key === 'Enter' && saveName()}
+                />
+              ) : (
+                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)}>
+                   <h2 className="text-2xl font-bold text-slate-900">{notebook.name}</h2>
+                   <svg className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </div>
+              )}
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                 {isReport ? 'Trend Report' : 'Case Collection'} • {isReport ? notebook.trends?.length || 0 : notebook.cases.length} Items
+              </p>
+           </div>
+        </div>
+        
+        <div className="flex gap-2">
+           <button 
+             onClick={() => setShowAnalytics(true)}
+             className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold text-xs shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2"
+           >
+             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+             Analytics
            </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {notebook.cases.map((data, index) => (
-          <div key={index} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 group relative">
-            <button 
-              onClick={() => onDeleteCase(index)}
-              className="absolute top-4 right-4 text-gray-300 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-all z-10"
-              title="Delete Case"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
-
-            <div className="flex items-center gap-3 mb-6">
-                <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wide">
-                  Case #{index + 1}
-                </span>
-                <span className="text-xs text-gray-500 font-mono bg-yellow-50 text-yellow-700 border border-yellow-100 px-2 py-1 rounded">
-                  {data.date}
-                </span>
-            </div>
-
-            <div className="space-y-6">
-                {/* Title & Copy */}
-                <div className="flex justify-between items-start pr-10">
-                    <h3 className="text-2xl font-bold text-gray-900 leading-tight">{data.productName}</h3>
-                    <button
-                        onClick={() => handleCopy(data, index)}
-                        className={`text-xs font-bold px-3 py-1 rounded border transition-colors ${copiedIndex === index ? 'bg-green-100 text-green-700 border-green-200' : 'bg-white text-gray-400 border-gray-200 hover:text-gray-900'}`}
-                    >
-                        {copiedIndex === index ? 'Copied!' : 'Copy'}
-                    </button>
-                </div>
-
-                {/* Project Overview */}
-                <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
-                    <p className="font-semibold text-gray-900 mb-2">Project Overview</p>
-                    <p className="text-gray-600 mb-3 text-sm leading-relaxed">{data.projectName}</p>
-                    <div className="flex items-start gap-3 pt-3 border-t border-gray-200">
-                       <div className="min-w-fit px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold">Partner</div>
-                       <p className="text-gray-500 text-xs italic">{data.partnerIntro}</p>
+      {/* TRENDS LIST VIEW */}
+      {isReport && notebook.trends && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           {notebook.trends.map((item, index) => (
+             <div key={index} className="bg-white/80 backdrop-blur-sm rounded-[24px] p-8 shadow-sm border border-slate-100 hover:shadow-md transition-all relative group">
+                <button 
+                  onClick={() => onDeleteTrend && onDeleteTrend(index)}
+                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  ✕
+                </button>
+                <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">🔥</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">{item.ipName}</h3>
+                      <span className="text-xs font-bold text-slate-500 uppercase">{item.category}</span>
                     </div>
                 </div>
+                <p className="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">{item.reason}</p>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                       <span className="font-bold text-slate-400 block mb-1">Audience</span>
+                       <span className="font-medium text-slate-800">{item.targetAudience}</span>
+                    </div>
+                    <div>
+                       <span className="font-bold text-slate-400 block mb-1">Compatibility</span>
+                       <span className="font-medium text-slate-800">{item.compatibility}</span>
+                    </div>
+                </div>
+             </div>
+           ))}
+        </div>
+      )}
 
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="p-5 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                    <p className="font-semibold text-indigo-900 mb-4">Co-branding Rights</p>
-                    <ul className="space-y-4">
-                        {data.rights.map((right, idx) => (
-                        <li key={idx} className="relative pl-4 border-l-2 border-indigo-200">
-                            <h4 className="font-bold text-gray-900 text-xs mb-1">{right.title}</h4>
-                            <p className="text-gray-600 text-xs leading-relaxed">{right.description}</p>
+      {/* CASES LIST VIEW */}
+      {!isReport && (
+        <div className="grid grid-cols-1 gap-8">
+          {notebook.cases.map((c, index) => (
+            <div key={index} className="bg-white rounded-[32px] p-8 md:p-10 shadow-sm border border-slate-100 hover:shadow-xl hover:border-indigo-100 transition-all duration-300 group relative overflow-hidden">
+              
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-indigo-400 to-purple-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              {/* Action Buttons */}
+              <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity translate-x-4 group-hover:translate-x-0 duration-300">
+                  <button 
+                    onClick={() => handleCopy(c, index)}
+                    className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    {copiedIndex === index ? 'Copied!' : 'Copy Markdown'}
+                  </button>
+                  <button 
+                    onClick={() => onDeleteCase(index)}
+                    className="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-baseline gap-4 mb-6">
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{c.projectName}</h3>
+                <span className="text-sm font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">{c.date}</span>
+              </div>
+
+              <div className="flex flex-wrap gap-3 mb-8">
+                  <div className="px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-1">Brand Product</span>
+                    <span className="text-sm font-bold text-indigo-900">{c.productName}</span>
+                  </div>
+                  <div className="px-4 py-2 bg-fuchsia-50 rounded-xl border border-fuchsia-100">
+                    <span className="text-[10px] font-bold text-fuchsia-400 uppercase tracking-widest block mb-1">Partner IP</span>
+                    <span className="text-sm font-bold text-fuchsia-900">{c.partnerIntro.substring(0, 40)}{c.partnerIntro.length > 40 && '...'}</span>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                 <div className="md:col-span-2">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-900"></span> Insight
+                    </h4>
+                    <p className="text-slate-600 leading-relaxed font-medium mb-6 bg-slate-50 p-6 rounded-2xl border-l-4 border-indigo-400">
+                      {c.insight}
+                    </p>
+
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-900"></span> Key Rights & Mechanics
+                    </h4>
+                    <ul className="space-y-3">
+                      {c.rights.map((r, i) => (
+                        <li key={i} className="flex items-start text-sm text-slate-600 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                          <span className="font-bold text-indigo-600 mr-2 min-w-[20px]">{i + 1}.</span>
+                          <span><strong className="text-slate-900">{r.title}:</strong> {r.description}</span>
                         </li>
-                        ))}
+                      ))}
                     </ul>
+                 </div>
+                 
+                 <div className="md:col-span-1 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Source Links</h4>
+                    <div className="flex flex-col gap-2">
+                       {c.sourceUrls && c.sourceUrls.length > 0 ? c.sourceUrls.map((url, i) => (
+                         <a 
+                           key={i} 
+                           href={url} 
+                           target="_blank" 
+                           rel="noreferrer"
+                           className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-all truncate"
+                         >
+                           <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                           <span className="truncate">{new URL(url).hostname}</span>
+                           <span className="text-slate-300 ml-auto">↗</span>
+                         </a>
+                       )) : <span className="text-slate-300 text-xs italic">No links available</span>}
                     </div>
-                    
-                    <div className="p-5 bg-purple-50 rounded-xl border border-purple-100 flex flex-col">
-                    <p className="font-semibold text-purple-900 mb-3">AI Insight</p>
-                    <p className="text-purple-800 text-sm leading-relaxed">{data.insight}</p>
-                    </div>
-                </div>
-
-                {/* Footer: Sources & Visuals */}
-                <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                   <div className="flex-grow">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Verified Sources</h4>
-                        <div className="flex flex-wrap gap-2">
-                        {data.sourceUrls && data.sourceUrls.length > 0 ? data.sourceUrls.map((url, i) => (
-                            <a key={i} href={url} target="_blank" rel="noreferrer" className="px-2 py-1 bg-gray-50 border border-gray-200 text-gray-500 rounded text-[10px] hover:bg-indigo-50 hover:text-indigo-600 transition-colors truncate max-w-[250px] inline-block">
-                                {new URL(url).hostname.replace('www.', '')}
-                            </a>
-                        )) : (
-                            <span className="text-gray-400 text-xs">No specific sources cited.</span>
-                        )}
-                        </div>
-                   </div>
-
-                   <div className="flex-shrink-0">
-                       <a 
-                          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(data.projectName + ' ' + data.productName)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-indigo-600 text-sm font-bold rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm group/btn"
-                        >
-                          <svg className="w-5 h-5 text-indigo-400 group-hover/btn:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Find Key Visuals
-                        </a>
-                   </div>
-                </div>
+                 </div>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
