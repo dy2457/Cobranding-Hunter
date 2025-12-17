@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { MatchRecommendation, MatchConfig } from '../types';
 
@@ -14,9 +15,9 @@ export const MatchmakerView: React.FC<MatchmakerViewProps> = ({ config, recommen
     <div className="max-w-5xl mx-auto pb-20 mt-28 px-4 animate-fade-in-up">
       {/* Header */}
       <div className="text-center mb-12">
-         <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-pink-500 mb-2 block">Matchmaker Results</span>
+         <span className="text-xs font-bold uppercase tracking-[0.3em] text-pink-500 mb-2 block">Matchmaker Results</span>
          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-4">Top Partners for {config.brandName}</h2>
-         <p className="text-slate-500 max-w-xl mx-auto">Based on your goal "{config.campaignGoal}" targeting {config.targetAudience || 'your audience'}.</p>
+         <p className="text-slate-500 max-w-xl mx-auto text-base">Based on your goal "{config.campaignGoal}" targeting {config.targetAudience || 'your audience'}.</p>
          <button onClick={onClose} className="mt-8 px-8 py-2.5 bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-full font-bold text-sm transition-all">
             Run New Match
          </button>
@@ -54,6 +55,11 @@ export const MatchmakerView: React.FC<MatchmakerViewProps> = ({ config, recommen
                    <span className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">#{index + 1}</span>
                    <h3 className="text-2xl font-bold text-slate-900">{rec.ipName}</h3>
                    <span className="bg-pink-50 text-pink-700 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">{rec.category}</span>
+                   {rec.budgetLevel && (
+                     <span className="bg-green-50 text-green-700 px-3 py-1 rounded-lg text-xs font-bold tracking-wide">
+                        Cost: {rec.budgetLevel}
+                     </span>
+                   )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -61,11 +67,19 @@ export const MatchmakerView: React.FC<MatchmakerViewProps> = ({ config, recommen
                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Why It Works</h4>
                       <p className="text-sm text-slate-700 font-medium leading-relaxed">{rec.whyItWorks}</p>
                    </div>
-                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <h4 className="text-xs font-bold text-purple-600 uppercase tracking-widest mb-2 flex items-center gap-2">
-                        <span>💡 Campaign Concept</span>
-                      </h4>
-                      <p className="text-sm text-slate-800 font-bold italic">"{rec.campaignIdea}"</p>
+                   <div className="space-y-4">
+                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <h4 className="text-xs font-bold text-purple-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                          <span>💡 Campaign Concept</span>
+                        </h4>
+                        <p className="text-sm text-slate-800 font-bold italic">"{rec.campaignIdea}"</p>
+                     </div>
+                     {rec.riskFactor && (
+                        <div className="px-4 py-2 border-l-2 border-red-200 pl-3">
+                           <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">Risk Factor</h4>
+                           <p className="text-xs text-slate-600">{rec.riskFactor}</p>
+                        </div>
+                     )}
                    </div>
                 </div>
              </div>

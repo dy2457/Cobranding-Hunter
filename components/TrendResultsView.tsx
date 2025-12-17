@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { TrendItem, GroundingMetadata } from '../types';
 
@@ -31,7 +32,7 @@ export const TrendResultsView: React.FC<TrendResultsViewProps> = ({ topic, trend
       <div className="flex items-center justify-between mb-8 sticky top-24 z-30 bg-white/80 backdrop-blur-xl py-4 rounded-[20px] px-6 border border-white/50 shadow-sm transition-all">
         <div>
            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Trend Report</span>
+              <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">Trend Report</span>
            </div>
            <h2 className="text-2xl font-bold text-slate-900 leading-tight">"{topic}"</h2>
         </div>
@@ -70,25 +71,62 @@ export const TrendResultsView: React.FC<TrendResultsViewProps> = ({ topic, trend
              </div>
              
              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4 pr-10">
+                <div className="flex items-center gap-3 mb-2 pr-10">
                    <h3 className="text-2xl font-bold text-slate-900">{item.ipName}</h3>
                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">{item.category}</span>
+                   {item.originCountry && (
+                      <span className="text-xs font-bold text-slate-400">📍 {item.originCountry}</span>
+                   )}
+                </div>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {item.momentum && (
+                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${
+                        item.momentum === 'Peaking' ? 'bg-red-50 text-red-600' : 
+                        item.momentum === 'Emerging' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                     }`}>
+                        🚀 {item.momentum} Momentum
+                     </span>
+                  )}
+                  {item.commercialValue && (
+                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${
+                        item.commercialValue === 'High' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'
+                     }`}>
+                        💎 {item.commercialValue} Value
+                     </span>
+                  )}
                 </div>
 
                 <div className="space-y-4">
                    <div className="p-4 bg-purple-50/50 rounded-2xl border border-purple-100/50">
-                      <p className="text-[10px] font-bold text-purple-800 uppercase tracking-widest mb-1">Why Trending</p>
+                      <p className="text-xs font-bold text-purple-800 uppercase tracking-widest mb-1">Why Trending</p>
                       <p className="text-sm text-slate-700 leading-relaxed font-medium">{item.reason}</p>
                    </div>
                    
-                   <div className="grid grid-cols-2 gap-4">
+                   {item.buzzwords && item.buzzwords.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                         {item.buzzwords.map((bw, i) => (
+                           <span key={i} className="px-2 py-1 bg-white border border-slate-100 rounded-md text-xs font-bold text-slate-500">#{bw}</span>
+                         ))}
+                      </div>
+                   )}
+
+                   <div className="grid grid-cols-2 gap-4 pt-2">
                       <div>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Audience</p>
+                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Audience</p>
                          <p className="text-sm font-medium text-slate-800">{item.targetAudience}</p>
                       </div>
                       <div>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Compatability</p>
-                         <p className="text-sm font-medium text-slate-800 line-clamp-2">{item.compatibility}</p>
+                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Compatability</p>
+                         <div className="flex flex-wrap gap-1">
+                           {Array.isArray(item.compatibility) ? (
+                              item.compatibility.map((c, i) => (
+                                <span key={i} className="text-xs font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{c}</span>
+                              ))
+                           ) : (
+                              <p className="text-sm font-medium text-slate-800 line-clamp-2">{item.compatibility}</p>
+                           )}
+                         </div>
                       </div>
                    </div>
                 </div>
@@ -120,7 +158,7 @@ export const TrendResultsView: React.FC<TrendResultsViewProps> = ({ topic, trend
 
       {/* Sources Footer */}
       <div className="mt-12 pt-6 border-t border-slate-200">
-         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Intelligence Sources</p>
+         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Intelligence Sources</p>
          <div className="flex flex-wrap gap-2">
             {metadata?.groundingChunks?.map((chunk, i) => (
                 <a key={i} href={chunk.web?.uri} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-500 hover:underline bg-indigo-50 px-2 py-1 rounded">

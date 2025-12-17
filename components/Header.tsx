@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface HeaderProps {
   notebookCount?: number;
@@ -7,8 +7,22 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ notebookCount = 0, onOpenNotebook, isSearching }) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 pointer-events-none">
+    <header 
+      className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all duration-300 pointer-events-none
+        ${isScrolled ? 'bg-white/70 backdrop-blur-xl border-b border-white/50 shadow-sm py-3' : 'bg-transparent py-5'}
+      `}
+    >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Logo Area - Pointer events auto to allow clicking */}
@@ -25,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ notebookCount = 0, onOpenNoteboo
              </div>
           </div>
           <div className="flex flex-col">
-             <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">
+             <h1 className={`text-xl font-bold tracking-tight leading-none group-hover:text-indigo-600 transition-colors ${isScrolled ? 'text-slate-900' : 'text-slate-900'}`}>
                Co-Brand Hunter
              </h1>
              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">
@@ -43,17 +57,21 @@ export const Header: React.FC<HeaderProps> = ({ notebookCount = 0, onOpenNoteboo
               relative group flex items-center gap-3 px-5 py-2.5 rounded-full transition-all duration-300
               ${isSearching 
                 ? 'opacity-50 cursor-not-allowed bg-slate-100/50' 
-                : 'bg-white/70 hover:bg-white backdrop-blur-xl border border-white/40 shadow-sm hover:shadow-lg hover:-translate-y-0.5'
+                : isScrolled 
+                  ? 'bg-slate-900 text-white shadow-md hover:bg-black'
+                  : 'bg-white/70 hover:bg-white backdrop-blur-xl border border-white/40 shadow-sm hover:shadow-lg hover:-translate-y-0.5'
               }
             `}
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg group-hover:scale-110 transition-transform duration-300">📂</span>
-              <span className="font-bold text-sm text-slate-800">Library</span>
+              <span className={`text-lg group-hover:scale-110 transition-transform duration-300 ${isSearching ? '' : isScrolled ? 'text-white' : ''}`}>📂</span>
+              <span className={`font-bold text-sm ${isSearching ? 'text-slate-800' : isScrolled ? 'text-white' : 'text-slate-800'}`}>Library</span>
             </div>
             
             {notebookCount > 0 && (
-              <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-slate-900 text-white text-[10px] font-bold rounded-full shadow-md group-hover:bg-indigo-600 transition-colors">
+              <span className={`flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold rounded-full shadow-md transition-colors
+                 ${isScrolled ? 'bg-white text-slate-900' : 'bg-slate-900 text-white group-hover:bg-indigo-600'}
+              `}>
                 {notebookCount}
               </span>
             )}
