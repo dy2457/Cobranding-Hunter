@@ -1,502 +1,612 @@
 
-import { GoogleGenAI } from "@google/genai";
-import { CobrandingCase, ResearchConfig, ResearchResult, GroundingMetadata, TrendResult, TrendItem, TrendConfig, IPProfile, MatchConfig, MatchRecommendation, SocialPostResult } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { z } from "https://esm.sh/zod";
+import { 
+  CobrandingCase, 
+  ResearchConfig, 
+  ResearchResult, 
+  GroundingMetadata, 
+  TrendResult, 
+  TrendItem, 
+  TrendConfig, 
+  IPProfile, 
+  MatchConfig, 
+  MatchRecommendation, 
+  SocialPostResult 
+} from "../types";
 
-const apiKey = process.env.API_KEY || '';
+// Initialize GenAI with the recommended method
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-// Initialize GenAI
-const ai = new GoogleGenAI({ apiKey });
+// Model names per guidelines
+const TEXT_MODEL = "gemini-3-pro-preview"; // Complex reasoning & data synthesis
+const FAST_MODEL = "gemini-3-flash-preview"; // Fast generation
+const IMAGE_MODEL = "gemini-2.5-flash-image"; 
 
-const modelName = "gemini-2.5-flash";
-const imageModelName = "gemini-2.5-flash-image"; // Nano Banana
+// --- ZOD SCHEMAS FOR VALIDATION ---
 
-// --- PROMPT GENERATORS (PUBLIC FOR TRANSPARENCY) ---
+export const CobrandingCaseSchema = z.object({
+  projectName: z.string(),
+  brandName: z.string(),
+  industry: z.string().optional(),
+  date: z.string(),
+  productName: z.string(),
+  partnerIntro: z.string(),
+  campaignSlogan: z.string().nullable().optional(),
+  impactResult: z.string().nullable().optional(),
+  visualStyle: z.string().nullable().optional(),
+  keyVisualUrl: z.string().nullable().optional(),
+  rights: z.array(z.object({
+    title: z.string(),
+    description: z.string()
+  })),
+  insight: z.string(),
+  platformSource: z.string(),
+  sourceUrls: z.array(z.string())
+});
 
-export const getBrandSearchPrompt = (config: ResearchConfig): string => {
-  const strategySection = `
-    TARGET BRAND: "${config.brandName}"
-    CUSTOM SEARCH KEYWORDS: ${config.keywords.map(k => `"${k}"`).join(', ')}
-    TARGET SOURCES: ${config.platforms.join(', ')}
-  `;
+const TrendItemSchema = z.object({
+  ipName: z.string(),
+  originCountry: z.string().optional(),
+  category: z.string(),
+  momentum: z.enum(['Emerging', 'Peaking', 'Stabilizing']).optional(),
+  commercialValue: z.enum(['High', 'Medium', 'Niche']).optional(),
+  buzzwords: z.array(z.string()).optional(),
+  reason: z.string(),
+  targetAudience: z.string(),
+  compatibility: z.array(z.string()).optional()
+});
 
-  return `
-    ${strategySection}
-    OBJECTIVE: Deep search for co-branding cases (Last 5 years).
-    DATA EXTRACTION RULES: Output strictly structured JSON.
-    Language: Chinese (Simplified).
-    
-    CRITICAL FORMAT RULES: 
-    - Return a single valid JSON Array [...].
-    - Extract ALL required fields.
-    - Output raw JSON only. Do not use Markdown code blocks.
-    - Escape double quotes within strings.
-    - Null Handling: If specific data (like Slogan or URL) is not found, use null (do not use "N/A" string).
+const IPProfileSchema = z.object({
+  meta: z.object({
+    ipName: z.string(),
+    rightsHolder: z.string(),
+    originMedium: z.string(),
+    currentStatus: z.enum(['Active', 'Dormant', 'Classic'])
+  }),
+  commercialAnalysis: z.object({
+    tier: z.enum(['S', 'A', 'B', 'C']),
+    marketMomentum: z.enum(['Rising', 'Peaking', 'Stable', 'Declining']),
+    coreAudience: z.object({
+      primaryGen: z.string(),
+      psychographics: z.string(),
+      genderSkew: z.string()
+    }),
+    brandArchetype: z.string(),
+    riskFactors: z.array(z.string())
+  }),
+  designElements: z.object({
+    keyColors: z.array(z.string()),
+    iconography: z.array(z.string()),
+    texturesAndMaterials: z.array(z.string()),
+    signatureQuotes: z.array(z.string())
+  }),
+  collabHistory: z.array(z.object({
+    brand: z.string(),
+    product: z.string(),
+    time: z.string(),
+    marketEffect: z.string(),
+    link: z.string().optional()
+  })),
+  strategicFit: z.object({
+    bestIndustries: z.array(z.string()),
+    avoidIndustries: z.array(z.string()),
+    marketingHooks: z.string()
+  }),
+  upcomingTimeline: z.array(z.object({
+    event: z.string(),
+    date: z.string()
+  }))
+});
 
-    CONTENT GUIDELINES (HIGH PRIORITY):
-    1. RIGHTS (联名权益): Must be COMPREHENSIVE and SPECIFIC.
-       - Detail the physical changes to the product and packaging.
-       - Example Format:
-         * Title: "产品外壳" -> Description: "GO3S and Action Pod exterior printed with Doraemon theme color and character design."
-         * Title: "包装设计" -> Description: "Custom gift box mimicking a time machine with 3D embossing."
-         * Title: "周边配件" -> Description: "Includes limited edition magnet and stickers."
-       - Avoid generic phrases like "Custom design". Be descriptive about colors, materials, and specific items.
+const MatchRecommendationSchema = z.object({
+  ipName: z.string(),
+  category: z.string(),
+  matchScore: z.number(),
+  whyItWorks: z.string(),
+  campaignIdea: z.string(),
+  riskFactor: z.string().optional(),
+  budgetLevel: z.enum(['$', '$$', '$$$']).optional()
+});
 
-    2. INSIGHT (案例洞察): Provide deep STRATEGIC analysis.
-       - Analyze the Target Audience (e.g., "Anchoring parent-child scenarios", "Gen Z collectors").
-       - Explain the Market Move (e.g., "Breaking the tech niche", "Leveraging emotional consumption").
-       - Describe the Value (e.g., "Reach high purchasing power groups").
-       - Avoid generic summaries.
+const SocialPostResultSchema = z.object({
+  title: z.string(),
+  content: z.string()
+});
 
-    JSON Structure per item:
-    {
-      "projectName": "string (项目概述/名称)",
-      "brandName": "string (发起品牌/主体品牌 - e.g. ${config.brandName})",
-      "date": "string (项目时间 - YYYY.MM)",
-      "productName": "string (涉及产品)",
-      "partnerIntro": "string (合作品牌/IP)",
-      "campaignSlogan": "string (Slogan or N/A)",
-      "impactResult": "string (成效/热度 - Sales, Social Volume, or N/A)",
-      "visualStyle": "string (视觉风格 - e.g. Retro, Cyberpunk, Minimalist)",
-      "keyVisualUrl": "string (URL to main image if found, else null)",
-      "rights": [{ "title": "string (e.g. 产品定制, 包装权益)", "description": "string (Specific details)" }],
-      "insight": "string (Deep analysis of strategy, audience, and cultural relevance)",
-      "platformSource": "string (信息来源)",
-      "sourceUrls": ["string"]
-    }
-  `;
-};
+// --- GEMINI RESPONSE SCHEMAS (MAPS FROM ZOD/INTERFACES) ---
 
-export const getTrendAnalysisPrompt = (config: TrendConfig): string => {
-  return `
-    TOPIC: "${config.topic}"
-    TIME SCALE: "${config.timeScale}"
-    REQUIRED COUNT: Identify top ${config.limit} items.
-    CUSTOM CONTEXT/KEYWORDS: ${config.keywords.join(', ')}
-    TARGET SOURCES/DOMAINS: ${config.platforms.join(', ')}
-
-    TASK: Analyze current market trends to identify top co-branding opportunities, IPs, or brands related to this topic.
-    
-    DATA EXTRACTION RULES:
-    - Determine "Momentum" (Emerging, Peaking, or Stabilizing).
-    - Extract "Buzzwords" associated with this trend.
-    - Output text in Chinese (Simplified).
-    - Output raw JSON only. NO Markdown.
-    - Escape internal quotes.
-    - Ensure comma separation between array objects.
-
-    JSON Structure per item:
-    {
-    "ipName": "string (Name of the IP)",
-    "originCountry": "string",
-    "category": "string (Gaming / Anime / Art / Celebrity)",
-    "momentum": "Emerging | Peaking | Stabilizing",
-    "commercialValue": "High | Medium | Niche",
-    "buzzwords": ["string", "string"],
-    "reason": "string (Why is this trending in 2025 specifically?)",
-    "targetAudience": "string (e.g., Gen Z, High-Net-Worth Individuals)",
-    "compatibility": ["string", "string"]
-    }
-  `;
-};
-
-export const getIPScoutPrompt = (ipName: string): string => {
-  return `
-    TARGET IP: "${ipName}"
-    TASK: Generate a comprehensive commercial profile for this IP (Intellectual Property) focusing on co-branding potential.
-    
-    DATA GUIDELINES:
-    1. FOCUS ON AESTHETICS: Identify specific visual elements (colors, textures, symbols) suitable for product design.
-    2. FOCUS ON BUSINESS: Identify the actual licensor/rights holder and commercial tier.
-    3. LANGUAGE: Keys in English, Values in Chinese (Simplified).
-
-    OUTPUT FORMAT:
-    - Single Raw JSON Object.
-    - No Markdown code blocks.
-    - Use \`null\` for missing data.
-
-    JSON STRUCTURE:
-    {
-    "meta": {
-      "ipName": "${ipName}",
-      "rightsHolder": "string (e.g. Legendary Entertainment)",
-      "originMedium": "string (e.g. Literature/Film)",
-      "currentStatus": "Active | Dormant | Classic"
+const COBRANDING_CASE_RESPONSE_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      projectName: { type: Type.STRING },
+      brandName: { type: Type.STRING },
+      industry: { type: Type.STRING },
+      date: { type: Type.STRING },
+      productName: { type: Type.STRING },
+      partnerIntro: { type: Type.STRING },
+      campaignSlogan: { type: Type.STRING },
+      impactResult: { type: Type.STRING },
+      visualStyle: { type: Type.STRING },
+      keyVisualUrl: { type: Type.STRING },
+      rights: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            description: { type: Type.STRING }
+          },
+          required: ["title", "description"]
+        }
       },
-    "commercialAnalysis": {
-      "tier": "S", // S=Global Blockbuster, A=Regional/Niche Hit, B=Cult
-      "marketMomentum": "Rising | Peaking | Stable | Declining",
-      "coreAudience": {
-        "primaryGen": "string (e.g. Gen Z & Millennials)",
-        "psychographics": "string (e.g. Sci-Fi purists, Design lovers, Cinema buffs)",
-        "genderSkew": "string"
-      },
-    "brandArchetype": "string (e.g. The Ruler, The Explorer, The Sage)",
-    "riskFactors": ["string (e.g. High licensing cost)", "string (e.g. Complex lore)"]
+      insight: { type: Type.STRING },
+      platformSource: { type: Type.STRING },
+      sourceUrls: { type: Type.ARRAY, items: { type: Type.STRING } }
     },
-    "designElements": {
-      "keyColors": ["string (e.g. Desert Ochre)", "string (e.g. Spice Blue)"],
-      "iconography": ["string (e.g. Sandworm)", "string (e.g. House Atreides Hawk)"],
-      "texturesAndMaterials": ["string (e.g. Matte Sand)", "string (e.g. Brutalist Metal)"],
-      "signatureQuotes": ["string (e.g. Fear is the mind-killer)"]
-    },
-    "collabHistory": [
-    {
-      "time": "string (YYYY.MM)",
-      "brand": "string",
-      "product": "string",
-      "marketEffect": "string (Sales/Buzz/Impact)",
-      "link": "string (URL to official source/news or null)"
-    }
-  ],
-  "strategicFit": {
-    "bestIndustries": ["string (e.g. Tech)", "string (e.g. Luxury Fashion)"],
-    "avoidIndustries": ["string (e.g. Kids Toys)"],
-    "marketingHooks": "string (Key angle for selling, e.g. 'Epic Scale', 'Survival')"
-  },
-  "upcomingTimeline": [
-    { "event": "string", "date": "string (YYYY.MM)" }
-  ]
-}
-  
-  SORT INSTRUCTION: Ensure "collabHistory" is strictly sorted by "time" in descending order (Latest to Oldest).
-  `;
-};
-
-export const getMatchmakingPrompt = (config: MatchConfig): string => {
-  return `
-    MY BRAND CONTEXT:
-    - Name: "${config.brandName}"
-    - Industry: "${config.industry}"
-    - Campaign Goal/Theme: "${config.campaignGoal}"
-    - Target Audience: "${config.targetAudience || 'General'}"
-
-    TASK:
-    Act as a Creative Director. Recommend 5 specific IPs (Intellectual Properties) that are the BEST match for a co-branding collaboration.
-    
-    REQUIREMENTS:
-    - Assess "Risk Factor" (Why might it fail?).
-    - Estimate "Budget Level" ($, $$, $$$).
-    - Provide a one-sentence "Campaign Idea".
-    - LANGUAGE: Chinese (Simplified).
-    - OUTPUT: Raw JSON Array. No Markdown.
-
-    OUTPUT JSON STRUCTURE:
-    [
-      {
-        "ipName": "Name of IP",
-        "category": "e.g. Anime, Game",
-        "matchScore": 95, // 0-100 Integer
-        "whyItWorks": "Strategic rationale...",
-        "campaignIdea": "One sentence creative concept...",
-        "riskFactor": "Potential mismatch or controversy risk",
-        "budgetLevel": "$ | $$ | $$$"
-      }
-    ]
-  `;
-};
-
-// --- SOCIAL MEDIA POST GENERATION ---
-
-export const generateSocialPostText = async (content: string): Promise<SocialPostResult> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  const prompt = `
-    TASK: Create a viral Xiaohongshu (Little Red Book) social media post based on the following research content.
-    
-    CONTENT TO ADAPT:
-    "${content.substring(0, 3000)}"
-
-    REQUIREMENTS:
-    1. TITLE: Click-bait style, using emojis, max 15 chars. (e.g. "‼️Exposed! The secret of...")
-    2. CAPTION: 
-       - Use "Xiaohongshu style" (lots of emojis, casual tone, bullet points).
-       - Structure: Hook -> Key Highlights -> Professional Insight -> Call to Action.
-       - Language: Chinese (Simplified).
-       - Add 5-8 relevant hashtags at the bottom.
-    
-    OUTPUT FORMAT:
-    JSON Object: { "title": "...", "content": "..." }
-  `;
-
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      temperature: 0.8
-    }
-  });
-
-  return parseJsonResponse<SocialPostResult>(response.text);
-};
-
-export const generateSocialPostImage = async (summary: string): Promise<string> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  // Using 'gemini-2.5-flash-image' (Nano Banana)
-  // Requesting a vertical 3:4 image
-  // VI Color: #b5004a (Magenta)
-  
-  const prompt = `
-    Design a high-quality, trendy social media poster background for a co-branding research report.
-    
-    VISUAL THEME:
-    - Main Brand Color: #b5004a (Deep Magenta/Pink).
-    - Style: Modern, Tech-Savvy, High-Fashion, Professional Infographic aesthetics.
-    - Composition: Vertical (3:4). Leave some negative space for text overlay.
-    - Content Abstract: ${summary.substring(0, 300)}
-    - Atmosphere: "Insightful", "Premium", "Viral".
-    - No text on image.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: imageModelName,
-    contents: {
-      parts: [{ text: prompt }]
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "3:4",
-        // imageSize: "1K" // Optional, default is 1K
-      }
-    }
-  });
-
-  // Extract image from response
-  // The output might contain image in inlineData
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-    }
+    required: ["projectName", "brandName", "date", "productName", "partnerIntro", "rights", "insight", "platformSource", "sourceUrls"]
   }
+};
 
-  return ''; // Fallback
+const CASE_AUTOCOMPLETE_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    suggestedPatch: {
+      type: Type.OBJECT,
+      properties: {
+        projectName: { type: Type.STRING },
+        brandName: { type: Type.STRING },
+        industry: { type: Type.STRING },
+        date: { type: Type.STRING },
+        productName: { type: Type.STRING },
+        partnerIntro: { type: Type.STRING },
+        campaignSlogan: { type: Type.STRING },
+        impactResult: { type: Type.STRING },
+        visualStyle: { type: Type.STRING },
+        keyVisualUrl: { type: Type.STRING },
+        rights: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING }
+            }
+          }
+        },
+        insight: { type: Type.STRING },
+        platformSource: { type: Type.STRING },
+        sourceUrls: { type: Type.ARRAY, items: { type: Type.STRING } }
+      }
+    },
+    confidence: {
+      type: Type.OBJECT,
+      properties: {
+        projectName: { type: Type.NUMBER },
+        brandName: { type: Type.NUMBER },
+        industry: { type: Type.NUMBER },
+        date: { type: Type.NUMBER },
+        productName: { type: Type.NUMBER },
+        partnerIntro: { type: Type.NUMBER },
+        insight: { type: Type.NUMBER }
+      }
+    },
+    sources: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          url: { type: Type.STRING }
+        }
+      }
+    },
+    warnings: { type: Type.ARRAY, items: { type: Type.STRING } }
+  },
+  required: ["suggestedPatch"]
+};
+
+const TREND_ITEM_RESPONSE_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      ipName: { type: Type.STRING },
+      originCountry: { type: Type.STRING },
+      category: { type: Type.STRING },
+      momentum: { type: Type.STRING },
+      commercialValue: { type: Type.STRING },
+      buzzwords: { type: Type.ARRAY, items: { type: Type.STRING } },
+      reason: { type: Type.STRING },
+      targetAudience: { type: Type.STRING },
+      compatibility: { type: Type.ARRAY, items: { type: Type.STRING } }
+    },
+    required: ["ipName", "category", "reason", "targetAudience"]
+  }
+};
+
+const IP_PROFILE_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    meta: {
+      type: Type.OBJECT,
+      properties: {
+        ipName: { type: Type.STRING },
+        rightsHolder: { type: Type.STRING },
+        originMedium: { type: Type.STRING },
+        currentStatus: { type: Type.STRING }
+      },
+      required: ["ipName", "rightsHolder", "originMedium", "currentStatus"]
+    },
+    commercialAnalysis: {
+      type: Type.OBJECT,
+      properties: {
+        tier: { type: Type.STRING },
+        marketMomentum: { type: Type.STRING },
+        coreAudience: {
+          type: Type.OBJECT,
+          properties: {
+            primaryGen: { type: Type.STRING },
+            psychographics: { type: Type.STRING },
+            genderSkew: { type: Type.STRING }
+          },
+          required: ["primaryGen", "psychographics", "genderSkew"]
+        },
+        brandArchetype: { type: Type.STRING },
+        riskFactors: { type: Type.ARRAY, items: { type: Type.STRING } }
+      },
+      required: ["tier", "marketMomentum", "coreAudience", "brandArchetype", "riskFactors"]
+    },
+    designElements: {
+      type: Type.OBJECT,
+      properties: {
+        keyColors: { type: Type.ARRAY, items: { type: Type.STRING } },
+        iconography: { type: Type.ARRAY, items: { type: Type.STRING } },
+        texturesAndMaterials: { type: Type.ARRAY, items: { type: Type.STRING } },
+        signatureQuotes: { type: Type.ARRAY, items: { type: Type.STRING } }
+      },
+      required: ["keyColors", "iconography", "texturesAndMaterials", "signatureQuotes"]
+    },
+    collabHistory: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          brand: { type: Type.STRING },
+          product: { type: Type.STRING },
+          time: { type: Type.STRING },
+          marketEffect: { type: Type.STRING },
+          link: { type: Type.STRING }
+        },
+        required: ["brand", "product", "time", "marketEffect"]
+      }
+    },
+    strategicFit: {
+      type: Type.OBJECT,
+      properties: {
+        bestIndustries: { type: Type.ARRAY, items: { type: Type.STRING } },
+        avoidIndustries: { type: Type.ARRAY, items: { type: Type.STRING } },
+        marketingHooks: { type: Type.STRING }
+      },
+      required: ["bestIndustries", "avoidIndustries", "marketingHooks"]
+    },
+    upcomingTimeline: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          event: { type: Type.STRING },
+          date: { type: Type.STRING }
+        },
+        required: ["event", "date"]
+      }
+    }
+  },
+  required: ["meta", "commercialAnalysis", "designElements", "collabHistory", "strategicFit", "upcomingTimeline"]
+};
+
+const MATCH_RECOMMENDATION_RESPONSE_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      ipName: { type: Type.STRING },
+      category: { type: Type.STRING },
+      matchScore: { type: Type.INTEGER },
+      whyItWorks: { type: Type.STRING },
+      campaignIdea: { type: Type.STRING },
+      riskFactor: { type: Type.STRING },
+      budgetLevel: { type: Type.STRING }
+    },
+    required: ["ipName", "category", "matchScore", "whyItWorks", "campaignIdea"]
+  }
+};
+
+const SOCIAL_POST_RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    content: { type: Type.STRING }
+  },
+  required: ["title", "content"]
+};
+
+// --- HELPER: RETRY LOGIC ---
+async function withRetry<T>(fn: () => Promise<T>, retries = 5, delay = 2000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    if (retries > 0) {
+      console.warn(`API call failed, retrying... (${retries} attempts left). Error: ${error.message}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(fn, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
+// --- PROMPT GENERATORS (MANDATING CHINESE OUTPUT) ---
+
+export const getBrandSearchPrompt = (config: ResearchConfig) => {
+  return `请寻找 ${config.brandName} 的跨界联名/合作案例。重点关注硬件、数码和生活方式领域。
+考虑的关键词：${config.keywords.join(', ')}。
+检索范围：${config.platforms.join(', ')}。
+**要求：所有返回的字段内容（如：项目名称、品牌名称、行业类别、视觉风格、Slogan、联名权益、案例洞察等）必须使用简体中文编写。**
+需包含：项目名称、品牌、行业（如：科技、服饰、餐饮等）、时间、产品、合作伙伴简介、视觉风格、Slogan、成效、权益详情、战略洞察及来源链接。`;
+};
+
+export const getTrendAnalysisPrompt = (config: TrendConfig) => {
+  return `请分析关于话题 "${config.topic}" 的联名及文化趋势。
+时间范围：${config.timeScale}。
+结果数量：${config.limit}个。
+关键词：${config.keywords.join(', ')}。
+**要求：所有返回的文本内容（如：流行原因、受众群体、趋势词、兼容性等）必须使用简体中文。**
+重点关注势能（新兴、巅峰、稳定）、商业价值（高、中、小众）、受众画像及其与品牌的契合度。`;
+};
+
+export const getIPScoutPrompt = (ipName: string) => {
+  return `请为知识产权 IP "${ipName}" 生成一份全面的商业百科档案。
+**要求：除了 JSON 的键名外，所有生成的文本值（包括元数据、商业分析、设计元素、联名历史、战略契合度等）必须使用简体中文。**
+包含：版权方信息、商业等级(Tier)、核心受众心理画像、品牌原型、设计元素（色盘、纹理、口号）、历史联名成效、未来大事件及营销钩子。`;
+};
+
+export const getMatchmakingPrompt = (config: MatchConfig) => {
+  return `请为品牌 "${config.brandName}" 推荐最佳的 IP 联名合作伙伴。
+所属行业：${config.industry}。
+营销目标：${config.campaignGoal}。
+目标受众：${config.targetAudience || '通用人群'}。
+**要求：所有字段内容（如：推荐理由、创意切入点、风险提示等）必须使用简体中文编写。**
+需包含：IP名称、类别、匹配得分(0-100)、战略理由、一个具体的创意活动想法、风险提示及预算等级($, $$, $$$)。`;
 };
 
 // --- API FUNCTIONS ---
 
-// --- EXISTING BRAND SEARCH (Legacy/Brand Mode) ---
 export const searchBrandCases = async (config: ResearchConfig, promptOverride?: string): Promise<ResearchResult> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
   const prompt = promptOverride || getBrandSearchPrompt(config);
 
-  try {
+  return await withRetry(async () => {
     const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
-        tools: [{ googleSearch: {} }], 
-        temperature: 0.1, 
-        systemInstruction: "You are a rigorous Data Extraction Agent. Return ONLY valid JSON array. Ensure all objects in the array are separated by commas.",
-      },
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: COBRANDING_CASE_RESPONSE_SCHEMA,
+        temperature: 0.1
+      }
     });
 
-    const cases = parseJsonResponse<CobrandingCase[]>(response.text);
-    const sortedCases = cases.sort((a, b) => {
-      const dateA = new Date(a.date.replace(/\./g, '-')); 
-      const dateB = new Date(b.date.replace(/\./g, '-'));
-      return (isNaN(dateB.getTime()) ? 0 : dateB.getTime()) - (isNaN(dateA.getTime()) ? 0 : dateA.getTime());
-    });
+    const parsed = JSON.parse(response.text);
+    const validated = z.array(CobrandingCaseSchema).parse(parsed);
 
-    return { cases: sortedCases, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw error;
-  }
+    return { 
+      cases: validated as CobrandingCase[], 
+      metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata 
+    };
+  });
 };
 
-// --- SINGLE-SHOT TREND SEARCH (Used by App.tsx) ---
-export const analyzeTrends = async (config: TrendConfig, promptOverride?: string): Promise<TrendResult> => {
-  if (!apiKey) throw new Error("API Key is missing.");
+export interface AutoCompleteResult {
+  suggestedPatch: Partial<CobrandingCase>;
+  confidence?: Record<string, number>;
+  sources?: Array<{ title?: string; url: string }>;
+  warnings?: string[];
+}
 
+export const generateCaseFromKeyword = async (
+  keyword: string,
+  existing?: Partial<CobrandingCase>
+): Promise<AutoCompleteResult> => {
+  const prompt = `你是一个专业的联名研究员。请通过搜索查询关于联名案例 "${keyword}" 的详细信息。
+  目标是补全联名案例的数据。现有部分数据如下：${JSON.stringify(existing || {})}。
+  
+  **要求**：
+  1. 所有文本字段必须使用简体中文。
+  2. 只返回一个合法的 JSON 对象。
+  3. ` + "`suggestedPatch`" + ` 包含补全的字段（包括 industry 行业类别）。不要编造不可信的时间或数据。
+  4. 提供 ` + "`confidence`" + ` (0-1) 用于评估数据的可靠性。
+  5. 必须引用检索到的 ` + "`sources`" + `。
+  6. 如果存在歧义或不确定性，在 ` + "`warnings`" + ` 中说明。`;
+
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: CASE_AUTOCOMPLETE_RESPONSE_SCHEMA,
+        temperature: 0.2
+      }
+    });
+
+    const jsonStr = response.text.trim();
+    // Use a try-catch and regex to ensure we get valid JSON if model wraps it in markdown
+    const cleanedJson = jsonStr.replace(/^```json\n|```$/g, '');
+    const parsed = JSON.parse(cleanedJson);
+
+    return parsed as AutoCompleteResult;
+  });
+};
+
+export const analyzeTrends = async (config: TrendConfig, promptOverride?: string): Promise<TrendResult> => {
   const prompt = promptOverride || getTrendAnalysisPrompt(config);
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.4,
-      systemInstruction: "You are a Trend Analyst. Return ONLY a valid JSON array of objects. Ensure comma separation."
-    }
-  });
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: TREND_ITEM_RESPONSE_SCHEMA,
+        temperature: 0.4
+      }
+    });
 
-  const trends = parseJsonResponse<TrendItem[]>(response.text);
-  return { trends, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+    const parsed = JSON.parse(response.text);
+    const validated = z.array(TrendItemSchema).parse(parsed);
+
+    return { 
+      trends: validated as TrendItem[], 
+      metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata 
+    };
+  });
 };
 
-// --- IP SCOUT (DEEP DIVE) ---
 export const generateIPProfile = async (ipName: string, promptOverride?: string): Promise<{ profile: IPProfile, metadata?: GroundingMetadata }> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
   const prompt = promptOverride || getIPScoutPrompt(ipName);
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.2,
-      systemInstruction: "You are a Commercial IP Analyst. Return ONLY valid JSON matching the structure."
-    }
-  });
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: IP_PROFILE_RESPONSE_SCHEMA,
+        temperature: 0.2
+      }
+    });
 
-  const profile = parseJsonResponse<IPProfile>(response.text);
-  return { profile, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+    const parsed = JSON.parse(response.text);
+    const validated = IPProfileSchema.parse(parsed);
+
+    return { 
+      profile: validated as IPProfile, 
+      metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata 
+    };
+  });
 };
 
-// --- MATCHMAKER ---
 export const matchmakeIPs = async (config: MatchConfig, promptOverride?: string): Promise<{ recommendations: MatchRecommendation[], metadata?: GroundingMetadata }> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
   const prompt = promptOverride || getMatchmakingPrompt(config);
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.7,
-      systemInstruction: "You are a Creative Strategy Director. Return ONLY valid JSON array."
-    }
-  });
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+        responseSchema: MATCH_RECOMMENDATION_RESPONSE_SCHEMA,
+        temperature: 0.7
+      }
+    });
 
-  const recommendations = parseJsonResponse<MatchRecommendation[]>(response.text);
-  return { recommendations, metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata };
+    const parsed = JSON.parse(response.text);
+    const validated = z.array(MatchRecommendationSchema).parse(parsed);
+
+    return { 
+      recommendations: validated as MatchRecommendation[], 
+      metadata: response.candidates?.[0]?.groundingMetadata as unknown as GroundingMetadata 
+    };
+  });
 };
 
-// --- HELPER FUNCTIONS (REMAIN UNCHANGED) ---
+export const generateSocialPostText = async (content: string): Promise<SocialPostResult> => {
+  const prompt = `请将以下调研内容改编成一篇适合在小红书(Xiaohongshu)上发布的爆款笔记：
+内容：${content.substring(0, 3000)}
+**要求：语气要专业、有洞察力且带有个人博主风格。必须使用简体中文。**`;
+
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: FAST_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: SOCIAL_POST_RESPONSE_SCHEMA,
+        temperature: 0.7
+      }
+    });
+
+    const parsed = JSON.parse(response.text);
+    const validated = SocialPostResultSchema.parse(parsed);
+
+    return validated as SocialPostResult;
+  });
+};
+
+export const generateSocialPostImage = async (summary: string): Promise<string> => {
+  const prompt = `Poster background for co-branding report. Theme: #b5004a. Content: ${summary.substring(0, 300)}. No text. High aesthetic quality.`;
+
+  return await withRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        imageConfig: { aspectRatio: "3:4" }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return '';
+  });
+};
+
+// --- QUICK GENERATORS ---
 
 export const generateSmartIPList = async (query: string): Promise<string[]> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  const prompt = `
-    USER QUERY: "${query}"
-    TASK: Generate a list of 20-30 specific IP Names, Popular Characters, or Cultural Entities that match the user's request for potential co-branding targets.
-    
-    Example input: "Most famous JP anime"
-    Example output: ["One Piece", "Naruto", "Dragon Ball", ...]
-
-    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
-  `;
-
   const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
+    model: FAST_MODEL,
+    contents: [{ role: 'user', parts: [{ text: `根据查询 "${query}" 列出 20 个相关的 IP 名字。**要求：使用简体中文编写 IP 名字。** 格式为 JSON 字符串数组。` }] }],
     config: {
-      temperature: 0.7,
-      responseMimeType: "application/json"
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
+      temperature: 0.7
     }
   });
-
-  return parseJsonResponse<string[]>(response.text);
+  return JSON.parse(response.text);
 };
 
 export const generateSmartBrandList = async (query: string): Promise<string[]> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  const prompt = `
-    USER QUERY: "${query}"
-    TASK: Generate a list of 20-30 specific Brand Names that match the user's request. Focus on commercial brands.
-    
-    Example input: "Top Chinese EV makers"
-    Example output: ["BYD", "NIO", "XPeng", "Xiaomi Auto", ...]
-
-    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
-  `;
-
   const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
+    model: FAST_MODEL,
+    contents: [{ role: 'user', parts: [{ text: `根据查询 "${query}" 列出 20 个相关的品牌名称。**要求：使用简体中文编写品牌名称。** 格式为 JSON 字符串数组。` }] }],
     config: {
-      temperature: 0.7,
-      responseMimeType: "application/json"
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
+      temperature: 0.7
     }
   });
-
-  return parseJsonResponse<string[]>(response.text);
+  return JSON.parse(response.text);
 };
 
 export const generateSmartTrendTopics = async (query: string): Promise<string[]> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  const prompt = `
-    USER QUERY: "${query}"
-    TASK: Generate a list of 10-15 specific, high-value "IP (Intellectual Property) & Co-branding" Research Topics based on the user's broad interest.
-    Focus on identifying trending Characters, Anime, Games, Movies, Art, or Cultural Icons that would be suitable for co-branding in this sector.
-    
-    Example input: "Food"
-    Example output: ["Trending Anime IPs for Snack Packaging 2025", "Nostalgic Gaming Characters for Energy Drinks", "Viral Mascot IPs for Fast Food Collabs", "Top Art IPs for Coffee Brands"]
-
-    OUTPUT: Return ONLY a raw JSON array of strings. No extra text.
-  `;
-
   const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
+    model: FAST_MODEL,
+    contents: [{ role: 'user', parts: [{ text: `根据查询 "${query}" 列出 10 个具体的高价值趋势研究话题。**要求：使用简体中文编写话题。** 格式为 JSON 字符串数组。` }] }],
     config: {
-      temperature: 0.7,
-      responseMimeType: "application/json"
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
+      temperature: 0.7
     }
   });
-
-  return parseJsonResponse<string[]>(response.text);
+  return JSON.parse(response.text);
 };
-
-// Helper to reliably parse JSON from LLM output
-function parseJsonResponse<T>(text?: string): T {
-  if (!text) return [] as T;
-
-  // 1. Strip Markdown Code Blocks
-  let cleanText = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-
-  // 2. Locate JSON bounds (find the outer-most structure)
-  const firstOpenBrace = cleanText.indexOf('{');
-  const firstOpenBracket = cleanText.indexOf('[');
-  const lastCloseBrace = cleanText.lastIndexOf('}');
-  const lastCloseBracket = cleanText.lastIndexOf(']');
-  
-  let startIndex = -1;
-  let endIndex = -1;
-
-  // Determine if it looks like an object or array and find start/end
-  if (firstOpenBracket !== -1 && (firstOpenBrace === -1 || firstOpenBracket < firstOpenBrace)) {
-    startIndex = firstOpenBracket;
-    endIndex = lastCloseBracket + 1;
-  } else if (firstOpenBrace !== -1) {
-    startIndex = firstOpenBrace;
-    endIndex = lastCloseBrace + 1;
-  }
-
-  if (startIndex !== -1 && endIndex > startIndex) {
-    cleanText = cleanText.substring(startIndex, endIndex);
-  }
-
-  // 3. Attempt Parsing
-  try {
-    return JSON.parse(cleanText) as T;
-  } catch (e) {
-    console.warn("JSON Parse failed on first attempt. Trying to fix...");
-    console.debug("Failed text snippet:", cleanText.substring(0, 100) + "...");
-
-    // Attempt fixes
-    try {
-       // Fix 1: Add missing commas between objects } { -> }, {
-       cleanText = cleanText.replace(/}\s*{/g, "},{");
-       
-       // Fix 2: Remove comments (// style and /* style)
-       cleanText = cleanText.replace(/\/\/.*$/gm, ""); // Line comments
-       cleanText = cleanText.replace(/\/\*[\s\S]*?\*\//g, ""); // Block comments
-
-       // Fix 3: Remove trailing commas before closing brackets/braces
-       cleanText = cleanText.replace(/,\s*([\]}])/g, '$1');
-       
-       return JSON.parse(cleanText) as T;
-    } catch (e2) {
-       console.error("JSON Fix failed", e2);
-       // Return empty array as fallback if we expect an array-like structure failure
-       return [] as unknown as T;
-    }
-  }
-}

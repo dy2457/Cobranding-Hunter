@@ -18,12 +18,13 @@ interface QuickPickItem {
   desc: string;
 }
 
+// Updated Categories to harmonize with #b5004a brand color
 const BRAND_CATEGORIES = [
   { 
     id: 'tech', 
-    label: 'Tech', 
+    label: '科技数码', 
     icon: '💻', 
-    gradient: 'from-blue-400 to-cyan-300', 
+    gradient: 'from-[#b5004a] to-rose-400', 
     brands: [
       { name: 'DJI 大疆', query: 'DJI', desc: 'Drones & Camera Systems' },
       { name: 'Insta360 影石', query: 'Insta360', desc: '360° Action Cameras' },
@@ -41,9 +42,9 @@ const BRAND_CATEGORIES = [
   },
   { 
     id: 'fashion', 
-    label: 'Fashion', 
+    label: '服饰时尚', 
     icon: '👟', 
-    gradient: 'from-fuchsia-500 to-pink-500', 
+    gradient: 'from-pink-500 to-[#b5004a]', 
     brands: [
       { name: 'Gentle Monster', query: 'Gentle Monster', desc: 'Avant-Garde Eyewear' },
       { name: 'Lululemon', query: 'Lululemon', desc: 'Yoga & Athleisure' },
@@ -61,9 +62,9 @@ const BRAND_CATEGORIES = [
   },
   { 
     id: 'food', 
-    label: 'F&B', 
+    label: '餐饮食品', 
     icon: '🍔', 
-    gradient: 'from-orange-400 to-amber-300', 
+    gradient: 'from-orange-400 to-[#b5004a]', 
     brands: [
       { name: 'Manner Coffee', query: 'Manner Coffee', desc: 'Boutique Coffee Chain' },
       { name: 'Heytea 喜茶', query: 'Heytea', desc: 'New Style Tea' },
@@ -81,9 +82,9 @@ const BRAND_CATEGORIES = [
   },
   { 
     id: 'beauty', 
-    label: 'Beauty', 
+    label: '美妆护肤', 
     icon: '💄', 
-    gradient: 'from-rose-400 to-red-300', 
+    gradient: 'from-[#b5004a] to-purple-500', 
     brands: [
       { name: 'Aesop 伊索', query: 'Aesop', desc: 'Plant-based Care' },
       { name: 'Florasis 花西子', query: 'Florasis', desc: 'Eastern Aesthetics' },
@@ -101,9 +102,9 @@ const BRAND_CATEGORIES = [
   },
   { 
     id: 'auto', 
-    label: 'Auto', 
+    label: '汽车出行', 
     icon: '🚗', 
-    gradient: 'from-emerald-400 to-teal-300', 
+    gradient: 'from-emerald-400 to-[#b5004a]', 
     brands: [
       { name: 'Xiaomi Auto 小米汽车', query: 'Xiaomi Auto', desc: 'Smart EV Ecosystem' },
       { name: 'NIO 蔚来', query: 'NIO', desc: 'Premium Smart EV' },
@@ -124,9 +125,9 @@ const BRAND_CATEGORIES = [
 const IP_CATEGORIES = [
   { 
     id: 'anime', 
-    label: 'Anime', 
+    label: '动漫番剧', 
     icon: '🎌', 
-    gradient: 'from-violet-500 to-purple-500', 
+    gradient: 'from-violet-500 to-[#b5004a]', 
     brands: [
       { name: 'One Piece 航海王', query: 'One Piece', desc: 'Adventure Epic' },
       { name: 'Evangelion EVA', query: 'Evangelion', desc: 'Mecha Aesthetics' },
@@ -144,9 +145,9 @@ const IP_CATEGORIES = [
   },
   { 
     id: 'games', 
-    label: 'Gaming', 
+    label: '电子游戏', 
     icon: '🎮', 
-    gradient: 'from-indigo-500 to-blue-500', 
+    gradient: 'from-blue-500 to-[#b5004a]', 
     brands: [
       { name: 'Genshin Impact 原神', query: 'Genshin Impact', desc: 'Open World RPG' },
       { name: 'Black Myth: Wukong', query: 'Black Myth: Wukong', desc: 'Chinese Action AAA' },
@@ -164,9 +165,9 @@ const IP_CATEGORIES = [
   },
   { 
     id: 'art', 
-    label: 'Art', 
+    label: '艺术文博', 
     icon: '🎨', 
-    gradient: 'from-yellow-400 to-orange-500', 
+    gradient: 'from-yellow-400 to-[#b5004a]', 
     brands: [
       { name: 'Van Gogh 梵高', query: 'Van Gogh', desc: 'Post-Impressionist' },
       { name: 'KAWS', query: 'KAWS', desc: 'Street Pop Art' },
@@ -184,9 +185,9 @@ const IP_CATEGORIES = [
   },
   { 
     id: 'stars', 
-    label: 'KOL', 
+    label: '明星/网红', 
     icon: '🌟', 
-    gradient: 'from-pink-500 to-rose-500', 
+    gradient: 'from-rose-500 to-[#b5004a]', 
     brands: [
       { name: 'BTS 防弹少年团', query: 'BTS', desc: 'K-Pop Global' },
       { name: 'Blackpink', query: 'Blackpink', desc: 'Girl Group Icon' },
@@ -237,20 +238,20 @@ const HelperPanel: React.FC<HelperPanelProps> = ({ query, onQueryChange, onSubmi
             onChange={e => onQueryChange(e.target.value)} 
             onKeyDown={(e) => e.key === 'Enter' && onSubmit(e)}
             placeholder={
-                mode === 'TREND' ? "Describe a topic (e.g. 'Future of Retail')..." :
-                mode === 'SCOUT' ? "Describe category (e.g. 'Popular Sci-Fi IPs')..." :
-                "Describe a category (e.g. 'Luxury Car Brands')..."
+                mode === 'TREND' ? "输入话题 (如: 2025 运动IP趋势)..." :
+                mode === 'SCOUT' ? "描述类别 (如: 热门科幻IP)..." :
+                "描述类别 (如: 豪华汽车品牌)..."
             }
-            className="flex-1 bg-slate-50 border-none rounded-2xl px-6 py-4 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-colors"
+            className="flex-1 bg-slate-50 border-none rounded-2xl px-6 py-4 font-medium focus:ring-2 focus:ring-[#b5004a]/20 focus:bg-white transition-colors"
           />
-          <button onClick={onSubmit} disabled={isLoading} className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-indigo-200">
-            {isLoading ? 'Thinking...' : 'Generate'}
+          <button onClick={onSubmit} disabled={isLoading} className="px-8 py-4 bg-[#b5004a] hover:bg-[#91003a] text-white font-bold rounded-2xl transition-colors shadow-lg shadow-pink-200">
+            {isLoading ? '思考中...' : '生成推荐'}
           </button>
        </div>
        {results.length > 0 && (
          <div className="flex flex-wrap gap-3 mt-6">
             {results.map((r, i) => (
-               <button key={i} onClick={() => onResultClick(r)} className="px-5 py-2.5 bg-white rounded-xl text-sm font-bold shadow-sm hover:text-indigo-600 hover:shadow-md hover:-translate-y-0.5 transition-all border border-slate-100">{r}</button>
+               <button key={i} onClick={() => onResultClick(r)} className="px-5 py-2.5 bg-white rounded-xl text-sm font-bold shadow-sm hover:text-[#b5004a] hover:shadow-md hover:-translate-y-0.5 transition-all border border-slate-100">{r}</button>
             ))}
          </div>
        )}
@@ -477,11 +478,11 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
           <div className="bg-white/90 backdrop-blur-xl rounded-[40px] shadow-2xl border border-white/50 p-8 relative z-10 overflow-hidden">
               
               {/* Decorative Background Blob inside card */}
-              <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-indigo-400/20 to-fuchsia-400/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute -top-20 -right-20 w-80 h-80 bg-gradient-to-br from-[#b5004a]/20 to-rose-400/20 rounded-full blur-3xl pointer-events-none"></div>
 
               <div className="flex justify-between items-start mb-8 border-b border-slate-100 pb-6">
                 <div>
-                  <span className="text-[10px] font-bold tracking-[0.2em] text-indigo-500 uppercase block mb-2">Configuration</span>
+                  <span className="text-[10px] font-bold tracking-[0.2em] text-[#b5004a] uppercase block mb-2">搜寻配置</span>
                   <h2 className="text-4xl font-bold text-slate-900 tracking-tight leading-tight line-clamp-2">
                       {isPlanning ? `Target: ${brandName}` : `Topic: ${trendTopic}`}
                   </h2>
@@ -500,7 +501,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                 {isTrendPlanning && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Time Horizon</label>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">时间跨度</label>
                           <div className="relative">
                               <select value={trendTimeScale} onChange={e => setTrendTimeScale(e.target.value)} className="w-full bg-transparent font-bold text-slate-700 text-lg appearance-none focus:outline-none cursor-pointer">
                                   <option>Last 3 Months</option>
@@ -513,8 +514,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                           </div>
                       </div>
                       <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Discovery Limit: <span className="text-indigo-600 ml-1">{trendLimit}</span></label>
-                          <input type="range" min="3" max="20" step="1" value={trendLimit} onChange={e => setTrendLimit(parseInt(e.target.value))} className="w-full accent-indigo-600 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-2"/>
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">探索数量限制: <span className="text-[#b5004a] ml-1">{trendLimit}</span></label>
+                          <input type="range" min="3" max="20" step="1" value={trendLimit} onChange={e => setTrendLimit(parseInt(e.target.value))} className="w-full accent-[#b5004a] h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer mt-2"/>
                       </div>
                   </div>
                 )}
@@ -522,13 +523,13 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                 {/* Keywords Section */}
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">
-                    {isPlanning ? 'Strategy Keywords' : 'Context Tags'}
+                    {isPlanning ? '策略关键词' : '语境标签'}
                   </label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {(isPlanning ? keywords : trendKeywords).map(k => (
-                      <span key={k} className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold bg-white border border-indigo-100 text-indigo-600 shadow-sm animate-fade-in group hover:border-indigo-300 select-none">
+                      <span key={k} className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold bg-white border border-pink-100 text-[#b5004a] shadow-sm animate-fade-in group hover:border-[#b5004a]/40 select-none">
                         {k}
-                        <button onClick={() => removeKeyword(k)} className="ml-2 text-indigo-300 group-hover:text-red-500 transition-colors">✕</button>
+                        <button onClick={() => removeKeyword(k)} className="ml-2 text-pink-300 group-hover:text-red-500 transition-colors">✕</button>
                       </span>
                     ))}
                   </div>
@@ -537,8 +538,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                       type="text" 
                       value={newKeyword}
                       onChange={(e) => setNewKeyword(e.target.value)}
-                      placeholder={isPlanning ? "Add keyword (e.g. 'Limited Edition')" : "Add context (e.g. 'Gen Z', 'Sustainable')"}
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 placeholder-slate-400 transition-all focus:bg-white"
+                      placeholder={isPlanning ? "添加关键词 (如：'限量版')..." : "添加语境 (如：'Z世代', '可持续')..."}
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-medium focus:ring-2 focus:ring-[#b5004a]/20 focus:border-[#b5004a] placeholder-slate-400 transition-all focus:bg-white"
                     />
                     <button type="submit" disabled={!newKeyword} className="absolute right-2 top-2 bottom-2 px-4 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-black disabled:opacity-0 transition-all transform scale-95 hover:scale-100">
                       ADD +
@@ -548,10 +549,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
 
                 {/* Platforms Section */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">Intelligence Sources</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">情报来源</label>
                   <div className="flex flex-wrap gap-2">
                     {DEFAULT_PLATFORMS.map(p => (
-                      <button key={p} onClick={() => togglePlatform(p)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${platforms.includes(p) ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-inner' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}>
+                      <button key={p} onClick={() => togglePlatform(p)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${platforms.includes(p) ? 'bg-[#b5004a]/5 border-[#b5004a] text-[#b5004a] shadow-inner' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}>
                         {p}
                       </button>
                     ))}
@@ -559,7 +560,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                         <input 
                           type="text" 
                           placeholder="+ URL..." 
-                          className="px-4 py-2 rounded-xl text-sm border border-dashed border-slate-300 bg-transparent focus:outline-none focus:border-indigo-500 focus:bg-white w-32 transition-all font-medium text-slate-700 focus:w-48 placeholder-slate-400"
+                          className="px-4 py-2 rounded-xl text-sm border border-dashed border-slate-300 bg-transparent focus:outline-none focus:border-[#b5004a] focus:bg-white w-32 transition-all font-medium text-slate-700 focus:w-48 placeholder-slate-400"
                           onKeyDown={(e) => {
                               if(e.key === 'Enter') {
                                 setPlatforms([...platforms, e.currentTarget.value]);
@@ -574,13 +575,13 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                 {/* Action Buttons */}
                 <div className="pt-8 border-t border-slate-100 flex justify-end gap-4">
                   <button onClick={() => { setIsPlanning(false); setIsTrendPlanning(false); }} className="px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
-                      Back
+                      返回
                   </button>
                   <button 
                     onClick={isPlanning ? initiateResearch : initiateTrendSearch}
                     className="px-10 py-4 bg-gradient-to-r from-slate-900 to-black text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all text-lg flex items-center gap-3 active:scale-95"
                   >
-                    <span>{isPlanning ? 'Start Hunt' : 'Analyze'}</span>
+                    <span>{isPlanning ? '开始查询' : '开始分析'}</span>
                     <span className="text-xl animate-pulse">⚡️</span>
                   </button>
                 </div>
@@ -594,7 +595,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
   if (appState !== AppState.IDLE) return null;
 
   return (
-    <div className="max-w-4xl mx-auto mt-24 animate-fade-in-up px-4">
+    <div className="max-w-4xl mx-auto mt-4 animate-fade-in-up px-4">
       {inspectorState.isOpen && (
           <PromptInspector 
             initialPrompt={inspectorState.prompt}
@@ -608,10 +609,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
       <div className="flex justify-center mb-12">
         <div className="bg-white/60 backdrop-blur-md p-1.5 rounded-[24px] grid grid-cols-2 md:grid-cols-4 gap-1 shadow-sm border border-white/50">
           {[
-            { id: 'BRAND', label: 'Case Hunter', icon: '🔍' },
-            { id: 'TREND', label: 'Trend Spotter', icon: '🔮' },
-            { id: 'SCOUT', label: 'IP Scout', icon: '⚡️' },
-            { id: 'MATCH', label: 'Matchmaker', icon: '🤝' },
+            { id: 'BRAND', label: '竞品案例', icon: '🔍' },
+            { id: 'TREND', label: '趋势研究', icon: '🔮' },
+            { id: 'SCOUT', label: 'IP 百科', icon: '⚡️' },
+            { id: 'MATCH', label: '联名匹配度分析', icon: '🤝' },
           ].map((m) => (
              <button 
                key={m.id}
@@ -627,7 +628,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
       {mode === 'BRAND' && (
         <div className="animate-fade-in">
           {/* Hero Search */}
-          <div className="relative z-20 mb-10 group">
+          <div className="relative z-20 mb-12 group">
             <div className="absolute inset-y-0 left-8 flex items-center pointer-events-none transition-transform group-focus-within:scale-110 duration-300">
                <span className="text-3xl opacity-40 grayscale group-focus-within:grayscale-0 group-focus-within:opacity-100">🔍</span>
             </div>
@@ -636,13 +637,13 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && brandName && setIsPlanning(true)}
-              className="block w-full pl-20 pr-32 py-7 rounded-[40px] bg-white/80 backdrop-blur-xl border border-white text-2xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all shadow-lg hover:shadow-xl"
-              placeholder={researchType === 'BRAND_TARGET' ? "Search Brands (e.g., Nike)..." : "Search IPs (e.g., One Piece)..."}
+              className="block w-full pl-20 pr-32 py-7 rounded-[40px] bg-white/80 backdrop-blur-xl border border-white text-2xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-[#b5004a]/10 focus:bg-white transition-all shadow-lg hover:shadow-xl"
+              placeholder={researchType === 'BRAND_TARGET' ? "搜索品牌 (如: Nike)..." : "Search IPs (e.g., One Piece)..."}
             />
             <div className="absolute right-4 top-4 bottom-4 flex items-center gap-2">
                <button 
                  onClick={() => setShowHelper(!showHelper)} 
-                 className={`h-full aspect-square rounded-[20px] text-xl flex items-center justify-center transition-all ${showHelper ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-500'}`}
+                 className={`h-full aspect-square rounded-[20px] text-xl flex items-center justify-center transition-all ${showHelper ? 'bg-[#b5004a]/10 text-[#b5004a]' : 'bg-slate-50 hover:bg-[#b5004a]/10 text-slate-400 hover:text-[#b5004a]'}`}
                >
                   ✨
                </button>
@@ -651,7 +652,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                  onClick={() => setIsPlanning(true)} 
                  className="h-full px-8 bg-slate-900 text-white rounded-[24px] font-bold hover:scale-105 hover:bg-black transition-all disabled:opacity-30 disabled:hover:scale-100 shadow-md"
                >
-                  GO
+                  开始搜寻
                </button>
             </div>
           </div>
@@ -670,7 +671,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
           )}
 
           {/* Categories */}
-          <div className="mb-10 overflow-x-auto no-scrollbar pb-6 -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="mb-10 overflow-x-auto no-scrollbar py-6 -mx-4 px-4 md:mx-0 md:px-0 relative z-10">
              <div className="flex justify-center gap-8 min-w-max px-4">
                 {activeCategories.map(cat => (
                    <div key={cat.id} className="flex flex-col items-center gap-3 group cursor-pointer tap-active" onClick={() => setActiveCategory(cat.id)}>
@@ -686,7 +687,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
           </div>
 
           {/* Quick Picks */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in relative z-10">
              {activeCategories.find(c => c.id === activeCategory)?.brands.map((item: any) => (
                 <button 
                   key={item.query} 
@@ -694,10 +695,10 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                   className="bg-white/40 hover:bg-white/80 backdrop-blur-sm p-4 rounded-2xl text-left shadow-sm hover:shadow-lg transition-all border border-white/60 group flex flex-col justify-between h-full min-h-[100px]"
                 >
                    <div>
-                       <span className="font-bold text-slate-800 group-hover:text-indigo-600 block text-base leading-tight mb-1">{item.name}</span>
+                       <span className="font-bold text-slate-800 group-hover:text-[#b5004a] block text-base leading-tight mb-1">{item.name}</span>
                        <span className="text-[10px] font-medium text-slate-500 block leading-tight">{item.desc}</span>
                    </div>
-                   <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">Quick Search &rarr;</span>
+                   <span className="text-[10px] font-bold text-[#b5004a]/70 uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">一键直达 &rarr;</span>
                 </button>
              ))}
           </div>
@@ -715,18 +716,18 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
               value={trendTopic}
               onChange={(e) => setTrendTopic(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && trendTopic && initTrendPlanning(trendTopic)}
-              className="block w-full pl-20 pr-32 py-7 rounded-[40px] bg-white/80 backdrop-blur-xl border border-white text-xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-fuchsia-500/10 focus:bg-white transition-all shadow-lg hover:shadow-xl"
-              placeholder="Ask anything (e.g., 'Popular Sports IPs 2024')"
+              className="block w-full pl-20 pr-32 py-7 rounded-[40px] bg-white/80 backdrop-blur-xl border border-white text-xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-[#b5004a]/10 focus:bg-white transition-all shadow-lg hover:shadow-xl"
+              placeholder="输入话题 (如: 2025 运动IP趋势)..."
             />
             <div className="absolute right-4 top-4 bottom-4 flex items-center gap-2">
                <button 
                  onClick={() => setShowHelper(!showHelper)} 
-                 className={`h-full aspect-square rounded-[20px] text-xl flex items-center justify-center transition-all ${showHelper ? 'bg-fuchsia-100 text-fuchsia-600' : 'bg-slate-50 hover:bg-fuchsia-50 text-slate-400 hover:text-fuchsia-500'}`}
+                 className={`h-full aspect-square rounded-[20px] text-xl flex items-center justify-center transition-all ${showHelper ? 'bg-[#b5004a]/10 text-[#b5004a]' : 'bg-slate-50 hover:bg-[#b5004a]/10 text-slate-400 hover:text-[#b5004a]'}`}
                >
                   ✨
                </button>
-               <button disabled={!trendTopic} onClick={() => initTrendPlanning(trendTopic)} className="h-full px-8 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white rounded-[24px] font-bold hover:scale-105 transition-transform disabled:opacity-50 shadow-lg shadow-fuchsia-200">
-                  Analyze
+               <button disabled={!trendTopic} onClick={() => initTrendPlanning(trendTopic)} className="h-full px-8 bg-gradient-to-r from-[#b5004a] to-rose-600 text-white rounded-[24px] font-bold hover:scale-105 transition-transform disabled:opacity-50 shadow-lg shadow-pink-200">
+                  分析趋势
                </button>
             </div>
           </div>
@@ -746,7 +747,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              {TREND_PRESETS.map((p, i) => (
                 <button key={i} onClick={() => initTrendPlanning(p.query)} className="bg-white/60 hover:bg-white/90 backdrop-blur-sm p-6 rounded-[24px] text-left hover:scale-[1.02] transition-all border border-white/50 shadow-sm hover:shadow-md group">
-                   <h3 className="text-lg font-bold text-slate-900 group-hover:text-fuchsia-600 transition-colors mb-2">{p.title}</h3>
+                   <h3 className="text-lg font-bold text-slate-900 group-hover:text-[#b5004a] transition-colors mb-2">{p.title}</h3>
                    <p className="text-sm text-slate-500 font-medium leading-relaxed">{p.query}</p>
                 </button>
              ))}
@@ -756,8 +757,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
 
       {mode === 'SCOUT' && (
         <div className="animate-fade-in text-center max-w-2xl mx-auto">
-           <h2 className="text-3xl font-bold text-slate-900 mb-2">Deep IP Analysis</h2>
-           <p className="text-slate-500 mb-8">Generate a comprehensive commercial profile for any Intellectual Property.</p>
+           <h2 className="text-3xl font-bold text-slate-900 mb-2">IP 深度百科</h2>
+           <p className="text-slate-500 mb-8">生成任何知识产权的综合商业档案。</p>
            
            <div className="relative z-20 mb-8">
             <input
@@ -765,12 +766,12 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
               value={scoutIPName}
               onChange={(e) => setScoutIPName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && scoutIPName && initiateScout()}
-              className="block w-full px-8 py-6 rounded-[30px] bg-white/80 backdrop-blur-xl border border-white text-xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 focus:bg-white transition-all shadow-lg text-center"
-              placeholder="Enter IP Name (e.g. 'Labubu', 'Black Myth: Wukong')"
+              className="block w-full px-8 py-6 rounded-[30px] bg-white/80 backdrop-blur-xl border border-white text-xl font-bold text-slate-900 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-[#b5004a]/10 focus:bg-white transition-all shadow-lg text-center"
+              placeholder="输入 IP 名 (如 'Labubu', '黑神话: 悟空')"
             />
             <button 
                onClick={() => setShowHelper(!showHelper)} 
-               className={`absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all ${showHelper ? 'bg-cyan-100 text-cyan-600' : 'bg-slate-100 text-slate-400 hover:bg-cyan-50 hover:text-cyan-500'}`}
+               className={`absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all ${showHelper ? 'bg-[#b5004a]/10 text-[#b5004a]' : 'bg-slate-100 text-slate-400 hover:bg-[#b5004a]/10 hover:text-[#b5004a]'}`}
             >
                 ✨
             </button>
@@ -793,9 +794,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
            <button 
              onClick={initiateScout} 
              disabled={!scoutIPName}
-             className="px-10 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all text-lg disabled:opacity-50"
+             className="px-10 py-4 bg-gradient-to-r from-[#b5004a] to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all text-lg disabled:opacity-50"
            >
-             Scout IP ⚡️
+             深度挖掘 ⚡️
            </button>
         </div>
       )}
@@ -804,23 +805,23 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
         <div className="animate-fade-in max-w-2xl mx-auto">
            <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[40px] shadow-lg border border-white/60">
              <div className="text-center mb-8">
-               <h2 className="text-2xl font-bold text-slate-900">Collaboration Matchmaker</h2>
-               <p className="text-slate-500 text-sm mt-1">AI-powered partner recommendations for your brand.</p>
+               <h2 className="text-2xl font-bold text-slate-900">联名匹配度分析</h2>
+               <p className="text-slate-500 text-sm mt-1">AI驱动的品牌合作伙伴推荐。</p>
              </div>
 
              <div className="space-y-4">
                 <div>
-                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Your Brand/Product</label>
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">您的品牌/产品</label>
                    <div className="relative">
                       <input 
                         value={matchBrand} 
                         onChange={e => setMatchBrand(e.target.value)} 
-                        className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 pr-12" 
-                        placeholder="e.g. 'Manner Coffee'"
+                        className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-[#b5004a]/20 pr-12" 
+                        placeholder="如：'Manner Coffee'"
                       />
                        <button 
                          onClick={() => setShowHelper(!showHelper)} 
-                         className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${showHelper ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-300 hover:text-indigo-500 hover:bg-indigo-50'}`}
+                         className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${showHelper ? 'bg-[#b5004a]/10 text-[#b5004a]' : 'bg-white text-slate-300 hover:text-[#b5004a] hover:bg-[#b5004a]/10'}`}
                        >
                           ✨
                        </button>
@@ -841,17 +842,17 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Industry</label>
-                    <input value={matchIndustry} onChange={e => setMatchIndustry(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20" placeholder="e.g. 'Beverage'"/>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">行业</label>
+                    <input value={matchIndustry} onChange={e => setMatchIndustry(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-[#b5004a]/20" placeholder="如：'饮料'"/>
                   </div>
                    <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Target Audience</label>
-                    <input value={matchAudience} onChange={e => setMatchAudience(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20" placeholder="e.g. 'Gen Z Students'"/>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">目标受众</label>
+                    <input value={matchAudience} onChange={e => setMatchAudience(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-[#b5004a]/20" placeholder="如：'Z世代大学生'"/>
                   </div>
                 </div>
                 <div>
-                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Campaign Goal / Occasion</label>
-                   <input value={matchGoal} onChange={e => setMatchGoal(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20" placeholder="e.g. 'Summer Refresh Campaign'"/>
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">营销目标 / 场景</label>
+                   <input value={matchGoal} onChange={e => setMatchGoal(e.target.value)} className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 font-bold text-slate-800 focus:ring-2 focus:ring-[#b5004a]/20" placeholder="如：'夏季新品推广'"/>
                 </div>
              </div>
 
@@ -859,9 +860,9 @@ export const SearchInput: React.FC<SearchInputProps> = ({ onStartResearch, onSta
                 <button 
                   onClick={initiateMatch} 
                   disabled={!matchBrand || !matchIndustry || !matchGoal}
-                  className="w-full py-4 bg-gradient-to-r from-pink-600 to-rose-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-gradient-to-r from-[#b5004a] to-rose-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all text-lg disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Find My Match 🤝
+                  生成推荐 🤝
                 </button>
              </div>
            </div>

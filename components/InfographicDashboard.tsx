@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { NotebookData, TrendItem, CobrandingCase } from '../types';
 
@@ -68,8 +69,8 @@ export const InfographicDashboard: React.FC<InfographicDashboardProps> = ({ note
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
            <div>
-             <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1 block">Visual Intelligence</span>
-             <h2 className="text-3xl font-bold text-slate-900">{notebook.name} <span className="text-slate-400 font-normal">Analytics</span></h2>
+             <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-1 block">可视化情报</span>
+             <h2 className="text-3xl font-bold text-slate-900">{notebook.name} <span className="text-slate-400 font-normal">数据分析</span></h2>
            </div>
            <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
              ✕
@@ -84,19 +85,19 @@ export const InfographicDashboard: React.FC<InfographicDashboardProps> = ({ note
             <div className="col-span-1 lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                <div className="p-6 rounded-3xl bg-indigo-50 border border-indigo-100 flex flex-col">
                   <span className="text-4xl font-bold text-indigo-600 mb-1">{notebook.cases.length}</span>
-                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Case Studies</span>
+                  <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest">入库案例</span>
                </div>
                <div className="p-6 rounded-3xl bg-fuchsia-50 border border-fuchsia-100 flex flex-col">
                   <span className="text-4xl font-bold text-fuchsia-600 mb-1">{notebook.trends?.length || 0}</span>
-                  <span className="text-xs font-bold text-fuchsia-400 uppercase tracking-widest">Trend Signals</span>
+                  <span className="text-xs font-bold text-fuchsia-400 uppercase tracking-widest">趋势信号</span>
                </div>
                <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-100 flex flex-col">
                   <span className="text-4xl font-bold text-emerald-600 mb-1">{categoryData.length}</span>
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Unique Sectors</span>
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">覆盖行业</span>
                </div>
                <div className="p-6 rounded-3xl bg-orange-50 border border-orange-100 flex flex-col">
                   <span className="text-4xl font-bold text-orange-600 mb-1">{timelineData.length}</span>
-                  <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">Active Months</span>
+                  <span className="text-xs font-bold text-orange-400 uppercase tracking-widest">活跃月份</span>
                </div>
             </div>
 
@@ -105,8 +106,8 @@ export const InfographicDashboard: React.FC<InfographicDashboardProps> = ({ note
               <div className="col-span-1 lg:col-span-2 bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
                  <div className="flex justify-between items-end mb-8 relative z-10">
                     <div>
-                      <h3 className="text-xl font-bold text-slate-900">Collaboration Velocity</h3>
-                      <p className="text-sm text-slate-400 mt-1">Frequency of launches over time</p>
+                      <h3 className="text-xl font-bold text-slate-900">联名频率趋势</h3>
+                      <p className="text-sm text-slate-400 mt-1">时间维度发布分布</p>
                     </div>
                  </div>
 
@@ -151,7 +152,7 @@ export const InfographicDashboard: React.FC<InfographicDashboardProps> = ({ note
                <div className="col-span-1 bg-slate-900 text-white rounded-3xl p-8 shadow-lg flex flex-col relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-40"></div>
                   
-                  <h3 className="text-xl font-bold mb-6 relative z-10">Context DNA</h3>
+                  <h3 className="text-xl font-bold mb-6 relative z-10">高频关键词</h3>
                   <div className="space-y-4 relative z-10">
                      {keywordData.map((k, i) => (
                         <div key={i} className="flex items-center gap-3">
@@ -174,7 +175,7 @@ export const InfographicDashboard: React.FC<InfographicDashboardProps> = ({ note
             {/* --- CHART 3: TREND ECOSYSTEM (Bubbles) --- */}
             {hasTrends && (
               <div className="col-span-1 lg:col-span-3 bg-gradient-to-br from-fuchsia-50 to-indigo-50 rounded-3xl p-8 border border-white shadow-inner relative overflow-hidden min-h-[300px]">
-                 <h3 className="text-xl font-bold text-slate-900 mb-8 relative z-10">Trend Ecosystem Distribution</h3>
+                 <h3 className="text-xl font-bold text-slate-900 mb-8 relative z-10">趋势生态分布</h3>
                  
                  <div className="flex flex-wrap items-center justify-center gap-4 relative z-10">
                     {categoryData.map((cat, i) => {

@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { SearchInput } from './components/SearchInput';
 import { LoadingState } from './components/LoadingState';
@@ -9,348 +9,93 @@ import { NotebookList } from './components/NotebookList';
 import { TrendResultsView } from './components/TrendResultsView';
 import { IPProfileView } from './components/IPProfileView';
 import { MatchmakerView } from './components/MatchmakerView';
-import { searchBrandCases, analyzeTrends, generateIPProfile, matchmakeIPs } from './services/geminiService';
-import { AppState, CobrandingCase, ResearchConfig, GroundingMetadata, NotebookData, TrendItem, TrendConfig, CollectionType, IPProfile, MatchConfig, MatchRecommendation } from './types';
+import { useAppStore } from './store/useAppStore';
+import { AppState, ResearchConfig } from './types';
 
 const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>(AppState.IDLE);
-  
-  // Data for the current search session (Review Stage)
-  const [reviewCases, setReviewCases] = useState<CobrandingCase[]>([]);
-  const [currentMetadata, setCurrentMetadata] = useState<GroundingMetadata | undefined>(undefined);
-  
-  // Data for Trend session
-  const [trendTopic, setTrendTopic] = useState('');
-  const [trendResults, setTrendResults] = useState<TrendItem[]>([]);
+  const {
+    appState, setAppState,
+    notebooks, activeNotebookId, setActiveNotebookId, createNotebook, deleteNotebook, updateNotebook,
+    reorderNotebookCases,
+    reviewCases, currentMetadata, confirmReview, discardReview,
+    trendTopic, trendResults, startTrendAnalysis,
+    currentIPProfile, startIPScout,
+    currentMatchConfig, matchRecommendations, startMatchmaking,
+    startResearch,
+    resetSession,
+    error,
+    addReport,
+    deleteNotebookCase,
+    deleteNotebookTrend
+  } = useAppStore();
 
-  // Data for Scout
-  const [currentIPProfile, setCurrentIPProfile] = useState<IPProfile | null>(null);
+  // Reactive hydration state
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Data for Matchmaker
-  const [currentMatchConfig, setCurrentMatchConfig] = useState<MatchConfig | null>(null);
-  const [matchRecommendations, setMatchRecommendations] = useState<MatchRecommendation[]>([]);
-
-  // Notebooks Management - Initialize from LocalStorage with Migration
-  const [notebooks, setNotebooks] = useState<NotebookData[]>(() => {
-    try {
-      const saved = localStorage.getItem('cb_notebooks');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Migration: Ensure 'type' exists
-        return parsed.map((nb: any) => ({
-          ...nb,
-          type: nb.type || 'notebook'
-        }));
-      }
-    } catch (e) {
-      console.error("Failed to load notebooks from storage", e);
-    }
-    // Default fallback
-    return [{ id: 'default', type: 'notebook', name: 'My First Notebook', cases: [], trends: [], createdAt: Date.now(), updatedAt: Date.now() }];
-  });
-
-  const [activeNotebookId, setActiveNotebookId] = useState<string>(() => {
-    return localStorage.getItem('cb_active_notebook_id') || 'default';
-  });
-  
-  const [error, setError] = useState<string | null>(null);
-
-  // Set Document Title
   useEffect(() => {
-    document.title = "Co-Brand Hunter";
+    // 1. Check if hydration is already complete (for fast storage or cached state)
+    if (useAppStore.persist.hasHydrated()) {
+      setIsHydrated(true);
+    }
+
+    // 2. Subscribe to the hydration finish event (crucial for async storage like IndexedDB)
+    const unsub = useAppStore.persist.onFinishHydration(() => {
+      setIsHydrated(true);
+    });
+
+    return () => unsub();
   }, []);
 
-  // Persistence Effect: Save notebooks whenever they change
   useEffect(() => {
-    localStorage.setItem('cb_notebooks', JSON.stringify(notebooks));
-  }, [notebooks]);
-
-  // Persistence Effect: Save active ID
-  useEffect(() => {
-    localStorage.setItem('cb_active_notebook_id', activeNotebookId);
-  }, [activeNotebookId]);
-
-  // Safeguard Effect: Prevent accidental close during critical states
-  useEffect(() => {
+    document.title = "IP鲸选站";
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only warn if searching or reviewing (unsaved temporary data)
       if (appState === AppState.SEARCHING || appState === AppState.REVIEWING) {
         e.preventDefault();
-        e.returnValue = ''; // Standard for modern browsers
-        return '';
+        e.returnValue = '';
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [appState]);
 
-  const handleStartResearch = useCallback(async (config: ResearchConfig, prompt?: string) => {
-    setAppState(AppState.SEARCHING);
-    setError(null);
-    setReviewCases([]);
-    setCurrentMetadata(undefined);
+  const activeNotebook = notebooks.find(n => n.id === activeNotebookId) || notebooks[0];
 
-    try {
-      const search = searchBrandCases(config, prompt);
-      // Wait for at least 2 seconds of loading animation to avoid flash
-      const [_, result] = await Promise.all([
-         new Promise(resolve => setTimeout(resolve, 2000)), 
-         search
-      ]);
-      
-      setReviewCases(result.cases);
-      setCurrentMetadata(result.metadata);
-      setAppState(AppState.REVIEWING);
-
-    } catch (err) {
-      console.error(err);
-      setError("Failed to fetch cases. Please check your API key or try again later.");
-      setAppState(AppState.ERROR);
-    }
-  }, []);
-
-  const handleStartTrendAnalysis = useCallback(async (config: TrendConfig, prompt?: string) => {
-    setAppState(AppState.TREND_SEARCHING);
-    setError(null);
-    setTrendTopic(config.topic);
-    setCurrentMetadata(undefined);
-    
-    try {
-      const result = await analyzeTrends(config, prompt);
-      setTrendResults(result.trends);
-      setCurrentMetadata(result.metadata);
-      setAppState(AppState.TREND_RESULTS);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to analyze trends. Please try again.");
-      setAppState(AppState.ERROR);
-    }
-  }, []);
-
-  const handleStartIPScout = useCallback(async (ipName: string, prompt?: string) => {
-    setAppState(AppState.SCOUTING_IP);
-    setError(null);
-    setCurrentMetadata(undefined); // Reset previous metadata
-    try {
-      const result = await generateIPProfile(ipName, prompt);
-      setCurrentIPProfile(result.profile);
-      setCurrentMetadata(result.metadata); // Capture grounding metadata
-      setAppState(AppState.IP_PROFILE_READY);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to scout IP. Please try again.");
-      setAppState(AppState.ERROR);
-    }
-  }, []);
-
-  const handleStartMatchmaking = useCallback(async (config: MatchConfig, prompt?: string) => {
-    setAppState(AppState.MATCHMAKING);
-    setError(null);
-    setCurrentMatchConfig(config);
-    try {
-      const result = await matchmakeIPs(config, prompt);
-      setMatchRecommendations(result.recommendations);
-      setAppState(AppState.MATCH_RESULTS_READY);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to find matches. Please try again.");
-      setAppState(AppState.ERROR);
-    }
-  }, []);
-
-  // Bridge function: Deep research from Trend View
   const handleDeepResearchFromTrend = (brandName: string) => {
-    // Construct a default config for the brand
     const config: ResearchConfig = {
       brandName: brandName,
       keywords: [`${brandName} cobranding`, `${brandName} collaboration`, `${brandName} 联名`],
-      platforms: [
-        "Google Search (google.com)",
-        "Official Website/Press Rooms", 
-        "Tech News (theverge.com, engadget.com)",
-        "Social Media (instagram.com, twitter.com)",
-        "Chinese Social (xiaohongshu.com, weibo.com)"
-      ]
+      platforms: ["Google Search", "Official Sites", "Xiaohongshu"]
     };
-    // Note: Deep research skips prompt inspection for smoother flow, or could be updated to show it.
-    // For now, it proceeds directly as per original flow, but could be refactored if "EVERY" prompt is strict requirement.
-    // Given the UX, direct flow here is often preferred, but let's stick to the requested "least black box" philosophy where possible.
-    // Since this function bypasses SearchInput, we'll just call the research directly.
-    handleStartResearch(config);
+    startResearch(config);
   };
 
-  // --- SAVING LOGIC ---
-
-  // Save Cases -> To a Notebook (Type: 'notebook')
-  const handleConfirmReview = (selected: CobrandingCase[]) => {
-    // Check if active notebook is a 'notebook'
-    let targetId = activeNotebookId;
-    const active = notebooks.find(n => n.id === activeNotebookId);
-    
-    // If active is not a notebook (it's a report), or doesn't exist, find most recent notebook or create new
-    if (!active || active.type !== 'notebook') {
-      const existingNotebook = notebooks.find(n => n.type === 'notebook');
-      if (existingNotebook) {
-        targetId = existingNotebook.id;
-      } else {
-        // Create new notebook
-        const newId = Date.now().toString();
-        const newNotebook: NotebookData = {
-          id: newId,
-          type: 'notebook',
-          name: 'My Case Studies',
-          cases: [],
-          trends: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        setNotebooks(prev => [...prev, newNotebook]);
-        targetId = newId;
-      }
-    }
-
-    setNotebooks(prevNotebooks => prevNotebooks.map(nb => {
-      if (nb.id === targetId) {
-        const combined = [...selected, ...nb.cases];
-        const sorted = combined.sort((a, b) => {
-          const dateA = new Date(a.date.replace(/\./g, '-')); 
-          const dateB = new Date(b.date.replace(/\./g, '-'));
-          if (isNaN(dateA.getTime())) return 1;
-          if (isNaN(dateB.getTime())) return -1;
-          return dateB.getTime() - dateA.getTime();
-        });
-        return { ...nb, cases: sorted, updatedAt: Date.now() };
-      }
-      return nb;
-    }));
-    
-    setActiveNotebookId(targetId);
-    setReviewCases([]); 
-    setAppState(AppState.NOTEBOOK_DETAIL);
-  };
-
-  // Save Trends -> To a Report (Type: 'report')
-  const handleSaveTrends = (selected: TrendItem[]) => {
-    // Always create a new Report for a new Topic search for better organization
-    const newId = Date.now().toString();
-    const newReport: NotebookData = {
-      id: newId,
-      type: 'report',
-      name: `Report: ${trendTopic}`,
-      cases: [],
-      trends: selected,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    
-    setNotebooks(prev => [...prev, newReport]);
-    setActiveNotebookId(newId);
-    setAppState(AppState.NOTEBOOK_DETAIL);
-  };
-
-  const handleDiscardReview = () => {
-    setReviewCases([]); // Clear rejected cases
-    setAppState(AppState.NOTEBOOK_DETAIL); // Go to notebook view
-  };
-
-  // --- MODIFICATION LOGIC ---
-
-  const deleteNotebookCase = (index: number) => {
-    setNotebooks(prev => prev.map(nb => {
-      if (nb.id === activeNotebookId) {
-        return { ...nb, cases: nb.cases.filter((_, i) => i !== index), updatedAt: Date.now() };
-      }
-      return nb;
-    }));
-  };
-
-  const deleteNotebookTrend = (index: number) => {
-    setNotebooks(prev => prev.map(nb => {
-      if (nb.id === activeNotebookId && nb.trends) {
-        return { ...nb, trends: nb.trends.filter((_, i) => i !== index), updatedAt: Date.now() };
-      }
-      return nb;
-    }));
-  };
-  
-  const handleRenameNotebook = (id: string, newName: string) => {
-    setNotebooks(prev => prev.map(nb => {
-      if (nb.id === id) {
-        return { ...nb, name: newName, updatedAt: Date.now() };
-      }
-      return nb;
-    }));
-  };
-
-  // --- NOTEBOOK MANAGEMENT ---
-
-  const handleOpenNotebookList = () => {
-    if (appState === AppState.IDLE || appState.includes('RESULTS') || appState.includes('PROFILE')) {
-       setAppState(AppState.NOTEBOOK_LIST);
-    }
-  };
-
-  const createNewNotebook = (type: CollectionType) => {
-    const newId = Date.now().toString();
-    const newNotebook: NotebookData = {
-      id: newId,
-      type: type,
-      name: type === 'report' ? 'New Trend Report' : 'New Case Notebook',
-      cases: [],
-      trends: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    setNotebooks([...notebooks, newNotebook]);
-    setActiveNotebookId(newId); 
-    setAppState(AppState.NOTEBOOK_DETAIL); 
-  };
-
-  const deleteNotebook = (id: string) => {
-    if (notebooks.length <= 1) {
-      alert("You must keep at least one item in your library.");
-      return;
-    }
-    const newNotebooks = notebooks.filter(n => n.id !== id);
-    setNotebooks(newNotebooks);
-    if (activeNotebookId === id) {
-      setActiveNotebookId(newNotebooks[0].id);
-    }
-  };
-
-  const selectNotebook = (id: string) => {
-    setActiveNotebookId(id);
-    setAppState(AppState.NOTEBOOK_DETAIL);
-  };
-
-  const handleBackFromNotebookDetail = () => {
-    if (reviewCases.length > 0) {
-      setAppState(AppState.REVIEWING);
-    } else {
-      setAppState(AppState.NOTEBOOK_LIST); // Back to list instead of IDLE
-    }
-  };
-
-  // Helper: Get active notebook object
-  const activeNotebook = notebooks.find(n => n.id === activeNotebookId) || notebooks[0];
+  // While waiting for the store to hydrate from IndexedDB, show the restoration screen
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white/40">
+        <div className="flex flex-col items-center gap-4 animate-pulse">
+           <div className="w-12 h-12 rounded-2xl bg-[#b5004a] opacity-20"></div>
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">正在恢复您的灵感库...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative text-slate-800">
       <Header 
         notebookCount={notebooks.length} 
-        onOpenNotebook={handleOpenNotebookList}
-        isSearching={appState === AppState.SEARCHING || appState === AppState.TREND_SEARCHING || appState === AppState.SCOUTING_IP || appState === AppState.MATCHMAKING}
+        onOpenNotebook={() => setAppState(AppState.NOTEBOOK_LIST)}
+        isSearching={appState.includes('SEARCHING') || appState === AppState.MATCHMAKING}
       />
       
-      {/* Added pt-28 to main to clear the fixed header */}
-      <main className="flex-grow w-full px-4 md:px-6 relative z-10 pb-20 pt-32">
+      <main className="flex-grow w-full px-4 md:px-6 relative pb-20 pt-32">
         {appState === AppState.IDLE && (
           <SearchInput 
-             onStartResearch={handleStartResearch} 
-             onStartTrendAnalysis={handleStartTrendAnalysis}
-             onStartIPScout={handleStartIPScout}
-             onStartMatchmaking={handleStartMatchmaking}
+             onStartResearch={startResearch} 
+             onStartTrendAnalysis={startTrendAnalysis}
+             onStartIPScout={startIPScout}
+             onStartMatchmaking={startMatchmaking}
              appState={appState} 
           />
         )}
@@ -365,8 +110,9 @@ const App: React.FC = () => {
              trends={trendResults}
              metadata={currentMetadata}
              onAnalyzeBrand={handleDeepResearchFromTrend}
-             onSaveToNotebook={handleSaveTrends}
-             onClose={() => setAppState(AppState.IDLE)}
+             // Fix: TrendResultsView expects a single argument (selectedTrends), but addReport needs both topic and trends
+             onSaveToNotebook={(selectedTrends) => addReport(trendTopic, selectedTrends)}
+             onClose={resetSession}
            />
         )}
 
@@ -374,7 +120,7 @@ const App: React.FC = () => {
            <IPProfileView 
              profile={currentIPProfile}
              metadata={currentMetadata}
-             onClose={() => setAppState(AppState.IDLE)}
+             onClose={resetSession}
            />
         )}
 
@@ -382,7 +128,7 @@ const App: React.FC = () => {
            <MatchmakerView 
              config={currentMatchConfig}
              recommendations={matchRecommendations}
-             onClose={() => setAppState(AppState.IDLE)}
+             onClose={resetSession}
            />
         )}
 
@@ -391,43 +137,39 @@ const App: React.FC = () => {
              newCases={reviewCases} 
              existingCases={activeNotebook.cases}
              metadata={currentMetadata}
-             onConfirm={handleConfirmReview}
-             onDiscardAll={handleDiscardReview}
+             onConfirm={confirmReview}
+             onDiscardAll={discardReview}
            />
         )}
 
         {appState === AppState.NOTEBOOK_LIST && (
            <NotebookList 
              notebooks={notebooks}
-             onSelectNotebook={selectNotebook}
-             onCreateNotebook={createNewNotebook}
+             onSelectNotebook={(id) => { setActiveNotebookId(id); setAppState(AppState.NOTEBOOK_DETAIL); }}
+             onCreateNotebook={createNotebook}
              onDeleteNotebook={deleteNotebook}
-             onClose={() => setAppState(AppState.IDLE)}
+             onClose={resetSession}
            />
         )}
 
         {appState === AppState.NOTEBOOK_DETAIL && (
            <Notebook 
              notebook={activeNotebook}
-             onRename={handleRenameNotebook}
+             onUpdate={updateNotebook}
+             onReorderCases={(newCases) => reorderNotebookCases(activeNotebook.id, newCases)}
              onDeleteCase={deleteNotebookCase}
              onDeleteTrend={deleteNotebookTrend}
-             onBack={handleBackFromNotebookDetail}
+             onBack={() => setAppState(reviewCases.length > 0 ? AppState.REVIEWING : AppState.NOTEBOOK_LIST)}
              hasPendingReview={reviewCases.length > 0}
            />
         )}
 
         {appState === AppState.ERROR && (
-          <div className="max-w-md mx-auto mt-20 p-8 glass-card rounded-3xl text-center animate-fade-in-up">
+          <div className="max-w-md mx-auto mt-20 p-8 glass-card rounded-3xl text-center">
             <div className="text-4xl mb-4">😵‍💫</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Oops, Glitch in the Matrix</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Error</h3>
             <p className="text-gray-500 mb-6">{error}</p>
-            <button 
-              onClick={() => setAppState(AppState.IDLE)}
-              className="px-6 py-3 bg-black text-white rounded-full font-bold hover:scale-105 transition-transform"
-            >
-              Try Again
-            </button>
+            <button onClick={resetSession} className="px-8 py-3 bg-black text-white rounded-full font-bold">Try Again</button>
           </div>
         )}
       </main>

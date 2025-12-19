@@ -7,11 +7,12 @@ export interface CobrandingRight {
 export interface CobrandingCase {
   projectName: string;      // 项目概述/名称
   brandName: string;        // 发起品牌/主体品牌 (NEW)
+  industry?: string;        // 行业类别 (NEW)
   date: string;             // 项目时间
   productName: string;      // 涉及产品
   partnerIntro: string;     // 合作品牌
   campaignSlogan?: string;  // Slogan
-  impactResult?: string;    // 成效/热度
+  impactResult?: string;    // 热度
   visualStyle?: string;     // 视觉风格
   keyVisualUrl?: string;    // 参考图 (Direct URL)
   rights: CobrandingRight[];// 联名权益
@@ -138,6 +139,11 @@ export interface NotebookData {
   trends?: TrendItem[]; 
   createdAt: number;
   updatedAt: number;
+  socialCopy?: {
+    title: string;
+    content: string;
+    generatedAt: number;
+  };
 }
 
 export interface SocialPostResult {
@@ -179,11 +185,12 @@ export const formatCaseToPlainText = (data: CobrandingCase): string => {
   return `项目概述：${data.projectName}
 项目时间：${data.date}
 发起品牌：${data.brandName}
+行业类别：${data.industry || 'N/A'}
 合作品牌：${data.partnerIntro}
 涉及产品：${data.productName}
 视觉风格：${data.visualStyle || 'N/A'}
 Slogan：${data.campaignSlogan || 'N/A'}
-成效/热度：${data.impactResult || 'N/A'}
+热度：${data.impactResult || 'N/A'}
 信息来源：${data.platformSource}
 参考图库：${googleImgLink}
 ${data.keyVisualUrl ? `Key Visual: ${data.keyVisualUrl}` : ''}
@@ -212,11 +219,12 @@ export const formatCaseToMarkdown = (data: CobrandingCase): string => {
   return `### ${data.projectName}
 - **项目时间**：${data.date}
 - **发起品牌**：${data.brandName}
+- **行业类别**：${data.industry || 'N/A'}
 - **合作品牌**：${data.partnerIntro}
 - **涉及产品**：${data.productName}
 - **视觉风格**：${data.visualStyle || 'N/A'}
 - **Slogan**：${data.campaignSlogan || 'N/A'}
-- **成效/热度**：${data.impactResult || 'N/A'}
+- **热度**：${data.impactResult || 'N/A'}
 - **信息来源**：${data.platformSource}
 - **参考图库**：<${googleImgLink}>
 ${data.keyVisualUrl ? `- **Key Visual**: <${data.keyVisualUrl}>` : ''}
@@ -311,7 +319,7 @@ export const generateNotebookHtml = (notebook: NotebookData): string => {
         <div class="meta-item"><span class="meta-label">合作品牌:</span> ${c.partnerIntro}</div>
         <div class="meta-item"><span class="meta-label">涉及产品:</span> ${c.productName}</div>
         <div class="meta-item"><span class="meta-label">视觉风格:</span> ${c.visualStyle || 'N/A'}</div>
-        <div class="meta-item"><span class="meta-label">成效/热度:</span> ${c.impactResult || 'N/A'}</div>
+        <div class="meta-item"><span class="meta-label">热度:</span> ${c.impactResult || 'N/A'}</div>
       </div>`;
       
       if (c.campaignSlogan) html += `<p><strong>Slogan:</strong> "${c.campaignSlogan}"</p>`;
