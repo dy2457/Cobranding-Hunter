@@ -16,7 +16,9 @@ import {
 } from "../types";
 
 // Initialize GenAI with the recommended method
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const API_KEY = (import.meta as any).env?.VITE_API_KEY || "";
+const ai = new GoogleGenAI({ apiKey: API_KEY });
+
 
 // Model names per guidelines
 const TEXT_MODEL = "gemini-3-pro-preview"; // Complex reasoning & data synthesis
